@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>金融营销大师养成记</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 顶部导航栏 -->
+        <header class="header">
+            <div class="header-left">
+                <h1 class="logo"><i class="fas fa-chart-line"></i> 金融营销大师养成记</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <div class="user-nickname">
+                        <i class="fas fa-user"></i>
+                        <span id="userNickname">学习者</span>
+                    </div>
+                    <div class="user-level">
+                        <i class="fas fa-user-tie"></i>
+                        <span id="userLevel">营销实习生</span>
+                    </div>
+                    <div class="user-points">
+                        <i class="fas fa-star"></i>
+                        <span id="userPoints">0</span> 积分
+                    </div>
+                    <div class="user-medals">
+                        <i class="fas fa-medal"></i>
+                        <span id="userMedals">0</span> 勋章
+                    </div>
+                </div>
+                <button class="settings-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
+            </div>
+        </header>
+
+        <!-- 主内容区 -->
+        <main class="main-container">
+            <!-- 左侧导航 -->
+            <aside class="sidebar" id="sidebar">
+                <div class="sidebar-header">
+                    <h3><i class="fas fa-list-ul"></i> 关卡列表</h3>
+                </div>
+                <nav class="level-nav" id="levelNav">
+                    <!-- 关卡列表会通过JS动态生成 -->
+                </nav>
+            </aside>
+
+            <!-- 内容区 -->
+            <section class="content" id="content">
+                <!-- 欢迎页面 -->
+                <div class="welcome-page" id="welcomePage">
+                    <div class="welcome-content">
+                        <div class="welcome-icon">
+                            <i class="fas fa-graduation-cap"></i>
+                        </div>
+                        <h2>欢迎来到金融营销大师养成记</h2>
+                        <p>通过游戏化学习，掌握金融产品营销实务的核心技能</p>
+                        
+                        <div class="nickname-input" style="margin: 20px 0;">
+                            <label for="nickname" style="display: block; margin-bottom: 8px; font-weight: 500;">设置你的昵称：</label>
+                            <input type="text" id="nickname" placeholder="请输入昵称" style="padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; width: 100%; max-width: 300px; font-size: 16px; outline: none;">
+                        </div>
+                        
+                        <button class="start-btn" id="startBtn">开始学习</button>
+                    </div>
+                </div>
+
+                <!-- 关卡页面 -->
+                <div class="level-page" id="levelPage" style="display: none;">
+                    <div class="level-header">
+                        <h2 id="levelTitle"></h2>
+                        <p id="levelDescription"></p>
+                    </div>
+                    
+                    <div class="knowledge-map" id="knowledgeMap">
+                        <!-- 知识导图 -->
+                    </div>
+                    
+                    <div class="sub-levels" id="subLevels">
+                        <!-- 小关卡列表 -->
+                    </div>
+                </div>
+
+                <!-- 学习页面 -->
+                <div class="study-page" id="studyPage" style="display: none;">
+                    <div class="study-header">
+                        <button class="back-btn" id="backToLevel"><i class="fas fa-arrow-left"></i> 返回</button>
+                        <h3 id="studyTitle"></h3>
+                    </div>
+                    <div class="study-content" id="studyContent">
+                        <!-- 知识点卡片 -->
+                    </div>
+                    <div class="study-nav">
+                        <button class="btn btn-secondary" id="prevKnowledge" disabled><i class="fas fa-chevron-left"></i> 上一个</button>
+                        <button class="btn btn-primary" id="nextKnowledge">下一个 <i class="fas fa-chevron-right"></i></button>
+                        <button class="btn btn-success" id="startQuiz" style="display: none;">开始答题 <i class="fas fa-play"></i></button>
+                    </div>
+                </div>
+
+                <!-- 答题页面 -->
+                <div class="quiz-page" id="quizPage" style="display: none;">
+                    <div class="quiz-header">
+                        <button class="back-btn" id="backToStudy"><i class="fas fa-arrow-left"></i> 返回</button>
+                        <div class="quiz-progress">
+                            <span id="currentQuestion">1</span> / <span id="totalQuestions">10</span>
+                        </div>
+                        <div class="quiz-stars">
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                            <i class="far fa-star"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="question-container" id="questionContainer">
+                        <!-- 题目内容 -->
+                    </div>
+                    
+                    <div class="quiz-nav">
+                        <button class="btn btn-secondary" id="prevQuestion" disabled><i class="fas fa-chevron-left"></i> 上一题</button>
+                        <button class="btn btn-primary" id="nextQuestion" style="display: none;">下一题 <i class="fas fa-chevron-right"></i></button>
+                        <button class="btn btn-success" id="submitQuiz">提交答案 <i class="fas fa-check"></i></button>
+                    </div>
+                </div>
+
+                <!-- 结果页面 -->
+                <div class="result-page" id="resultPage" style="display: none;">
+                    <div class="result-content">
+                        <div class="result-icon" id="resultIcon">
+                            <i class="fas fa-trophy"></i>
+                        </div>
+                        <h2 id="resultTitle">太棒了！</h2>
+                        <div class="result-message" id="resultMessage" style="margin: 10px 0 20px; font-size: 1.1rem; color: #2563eb; font-weight: 600;"></div>
+                        <div class="result-stars" id="resultStars"></div>
+                        <div class="result-stats">
+                            <p>正确率：<span id="accuracy">0</span>%</p>
+                            <p>获得积分：<span id="earnedPoints">0</span></p>
+                        </div>
+                        <div class="result-actions">
+                            <button class="btn btn-secondary" id="replayQuiz">重玩关卡</button>
+                            <button class="btn btn-primary" id="nextLevel">继续学习</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 成就页面 -->
+                <div class="achievement-page" id="achievementPage" style="display: none;">
+                    <div class="achievement-header">
+                        <h2><i class="fas fa-trophy"></i> 我的成就</h2>
+                    </div>
+                    <div class="achievement-stats">
+                        <div class="stat-card">
+                            <i class="fas fa-chart-pie"></i>
+                            <h3 id="totalLevels">0</h3>
+                            <p>已完成关卡</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-percentage"></i>
+                            <h3 id="totalAccuracy">0%</h3>
+                            <p>总正确率</p>
+                        </div>
+                        <div class="stat-card">
+                            <i class="fas fa-clock"></i>
+                            <h3 id="studyTime">0h</h3>
+                            <p>学习时长</p>
+                        </div>
+                    </div>
+                    <div class="medals-container" id="medalsContainer">
+                        <!-- 勋章列表 -->
+                    </div>
+                </div>
+
+                <!-- 设置页面 -->
+                <div class="settings-page" id="settingsPage" style="display: none;">
+                    <div class="settings-header">
+                        <h2><i class="fas fa-cog"></i> 设置</h2>
+                    </div>
+                    <div class="settings-content">
+                        <div class="setting-item">
+                            <label><i class="fas fa-user"></i> 昵称</label>
+                            <input type="text" id="settingsNickname" placeholder="请输入昵称" style="padding: 10px 15px; border: 2px solid #e2e8f0; border-radius: 8px; font-size: 16px; outline: none;">
+                        </div>
+                        <div class="setting-item">
+                            <label><i class="fas fa-volume-up"></i> 音效</label>
+                            <div class="toggle-switch" id="soundToggle">
+                                <div class="toggle-btn active"></div>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <label><i class="fas fa-palette"></i> 主题</label>
+                            <select id="themeSelect">
+                                <option value="blue">蓝色主题</option>
+                                <option value="green">绿色主题</option>
+                                <option value="purple">紫色主题</option>
+                            </select>
+                        </div>
+                        <div class="setting-item">
+                            <button class="btn btn-warning" id="resetData"><i class="fas fa-redo"></i> 重置学习进度</button>
+                        </div>
+                        <div class="setting-item">
+                            <button class="btn btn-secondary" id="closeSettings">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 底部进度条 -->
+        <footer class="footer">
+            <div class="progress-container">
+                <span class="progress-label">总体进度</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                </div>
+                <span class="progress-text" id="progressText">0%</span>
+            </div>
+        </footer>
+
+        <!-- 积分提示动画 -->
+        <div class="floating-points" id="floatingPoints" style="display: none;">+100</div>
+
+        <!-- 升级弹窗 -->
+        <div class="level-up-modal" id="levelUpModal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-icon">
+                    <i class="fas fa-rocket"></i>
+                </div>
+                <h2>恭喜升级！</h2>
+                <p>你现在是 <span id="newLevel"></span></p>
+                <button class="btn btn-primary" id="closeLevelUp">太棒了！</button>
+            </div>
+        </div>
+
+        <!-- 勋章弹窗 -->
+        <div class="medal-modal" id="medalModal" style="display: none;">
+            <div class="modal-content">
+                <div class="medal-icon" id="medalIcon"></div>
+                <h2>获得勋章！</h2>
+                <p id="medalName"></p>
+                <p id="medalDescription"></p>
+                <button class="btn btn-primary" id="closeMedal">收下</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
