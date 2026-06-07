@@ -477,8 +477,17 @@ class App {
         
         const leftItems = question.pairs.map((p, i) => {
             const isMatched = pairs[i] !== undefined;
-            const isCorrect = this.isAnswerSubmitted && pairs[i] === i;
-            const isWrong = this.isAnswerSubmitted && isMatched && !isCorrect;
+            let isCorrect = false;
+            let isWrong = false;
+            
+            if (this.isAnswerSubmitted && isMatched) {
+                const selectedRightIndex = pairs[i];
+                const selectedRightContent = question.pairs[selectedRightIndex].right;
+                const correctRightContent = question.pairs[i].right;
+                isCorrect = selectedRightContent === correctRightContent;
+                isWrong = !isCorrect;
+            }
+            
             return `
                 <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-left="${i}" style="--match-color: ${colors[i % colors.length]}">
                     <span class="match-label">${String.fromCharCode(65 + i)}</span>
@@ -492,8 +501,18 @@ class App {
         const rightItems = shuffledRight.map(i => {
             const matchedLeft = Object.keys(pairs).find(k => pairs[k] === i);
             const isMatched = matchedLeft !== undefined;
-            const isCorrect = this.isAnswerSubmitted && parseInt(matchedLeft) === i;
-            const isWrong = this.isAnswerSubmitted && isMatched && !isCorrect;
+            
+            let isCorrect = false;
+            let isWrong = false;
+            
+            if (this.isAnswerSubmitted && isMatched) {
+                const leftIndex = parseInt(matchedLeft);
+                const selectedRightContent = question.pairs[i].right;
+                const correctRightContent = question.pairs[leftIndex].right;
+                isCorrect = selectedRightContent === correctRightContent;
+                isWrong = !isCorrect;
+            }
+            
             const colorIndex = isMatched ? parseInt(matchedLeft) : (this.isAnswerSubmitted ? i : shuffledRight.indexOf(i));
             return `
                 <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-right="${i}" style="--match-color: ${colors[colorIndex % colors.length]}">
@@ -509,8 +528,14 @@ class App {
             connectionLines = '<svg class="connection-lines" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">';
             Object.keys(pairs).forEach(leftIndex => {
                 const rightIndex = pairs[leftIndex];
-                const isCorrect = this.isAnswerSubmitted && parseInt(leftIndex) === rightIndex;
-                const lineColor = isCorrect ? '#10b981' : (this.isAnswerSubmitted ? '#ef4444' : colors[parseInt(leftIndex) % colors.length]);
+                let lineColor = colors[parseInt(leftIndex) % colors.length];
+                
+                if (this.isAnswerSubmitted) {
+                    const selectedRightContent = question.pairs[rightIndex].right;
+                    const correctRightContent = question.pairs[parseInt(leftIndex)].right;
+                    lineColor = selectedRightContent === correctRightContent ? '#10b981' : '#ef4444';
+                }
+                
                 connectionLines += `<path data-left="${leftIndex}" data-right="${rightIndex}" stroke="${lineColor}" stroke-width="3" fill="none" stroke-linecap="round" style="opacity:0.7"/>`;
             });
             connectionLines += '</svg>';
@@ -844,7 +869,21 @@ class App {
                     case 'matching':
                         const pairs = this.selectedPairs[index] || {};
                         isCorrect = Object.keys(pairs).length === q.pairs.length &&
-                            Object.keys(pairs).every(k => parseInt(pairs[k]) === parseInt(k));
+                            Object.keys(pairs).every(k => {
+                                // 检查配对是否正确：左侧 k 对应的内容是否匹配到右侧对应的内容
+                                const leftIndex = parseInt(k);
+                                const rightIndex = parseInt(pairs[k]);
+                                
+                                // 获取左侧的内容
+                                const leftContent = q.pairs[leftIndex].left;
+                                // 获取用户选择的右侧内容
+                                const selectedRightContent = q.pairs[rightIndex].right;
+                                // 获取这个左侧内容应该匹配的正确右侧内容
+                                const correctRightContent = q.pairs[leftIndex].right;
+                                
+                                // 检查用户选择的右侧内容是否等于正确内容
+                                return selectedRightContent === correctRightContent;
+                            });
                         break;
                     case 'ordering':
                         const order = this.orderedItems[index] || [];
