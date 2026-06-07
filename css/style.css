@@ -1329,6 +1329,10 @@ body {
 }
 
 /* 匹配题样式 */
+.matching-wrapper {
+    padding: 10px 0;
+}
+
 .matching-container {
     display: flex;
     gap: 20px;
@@ -1354,43 +1358,84 @@ body {
     margin-bottom: 10px;
     cursor: pointer;
     transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.match-item.left {
+    justify-content: space-between;
+}
+
+.match-item.right {
+    justify-content: space-between;
 }
 
 .match-item:hover {
-    border-color: #2563eb;
+    border-color: var(--match-color, #2563eb);
     background: #eff6ff;
+    transform: translateX(2px);
 }
 
 .match-item.selected {
-    border-color: #2563eb;
+    border-color: var(--match-color, #2563eb);
     background: #dbeafe;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    transform: scale(1.02);
 }
 
 .match-item.matched {
-    opacity: 0.6;
+    opacity: 0.85;
     background: #ecfdf5;
+    border-color: var(--match-color, #10b981);
+}
+
+.match-item.correct {
+    background: #d1fae5;
     border-color: #10b981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.match-item.incorrect {
+    background: #fee2e2;
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
 
 .match-label {
-    display: inline-block;
-    width: 28px;
-    height: 28px;
-    background: #2563eb;
+    display: inline-flex;
+    width: 30px;
+    height: 30px;
+    background: var(--match-color, #2563eb);
     color: white;
     text-align: center;
-    line-height: 28px;
+    line-height: 30px;
     border-radius: 50%;
     font-weight: 600;
-    margin-right: 12px;
     font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.match-text {
+    flex: 1;
+}
+
+.match-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .match-divider {
-    align-self: center;
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 1.5rem;
     color: #94a3b8;
+    min-height: 300px;
 }
 
 /* 排序题样式 */

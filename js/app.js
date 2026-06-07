@@ -473,42 +473,66 @@ class App {
             this.selectedPairs[this.currentQuestionIndex] = {};
         }
         const pairs = this.selectedPairs[this.currentQuestionIndex];
+        const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
         
         const leftItems = question.pairs.map((p, i) => {
             const isMatched = pairs[i] !== undefined;
+            const isCorrect = this.isAnswerSubmitted && pairs[i] === i;
+            const isWrong = this.isAnswerSubmitted && isMatched && !isCorrect;
             return `
-                <div class="match-item left ${isMatched ? 'matched' : ''}" data-left="${i}">
+                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-left="${i}" style="--match-color: ${colors[i % colors.length]}">
                     <span class="match-label">${String.fromCharCode(65 + i)}</span>
                     <span class="match-text">${p.left}</span>
+                    <span class="match-dot" style="background-color: ${colors[i % colors.length]}"></span>
                 </div>
             `;
         }).join('');
 
-        const rightItems = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5).map(i => {
+        const shuffledRight = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5);
+        const rightItems = shuffledRight.map(i => {
             const matchedLeft = Object.keys(pairs).find(k => pairs[k] === i);
             const isMatched = matchedLeft !== undefined;
+            const isCorrect = this.isAnswerSubmitted && parseInt(matchedLeft) === i;
+            const isWrong = this.isAnswerSubmitted && isMatched && !isCorrect;
+            const colorIndex = isMatched ? parseInt(matchedLeft) : (this.isAnswerSubmitted ? i : shuffledRight.indexOf(i));
             return `
-                <div class="match-item right ${isMatched ? 'matched' : ''}" data-right="${i}">
-                    <span class="match-label">${i + 1}</span>
+                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-right="${i}" style="--match-color: ${colors[colorIndex % colors.length]}">
+                    <span class="match-dot" style="background-color: ${colors[colorIndex % colors.length]}"></span>
                     <span class="match-text">${question.pairs[i].right}</span>
+                    <span class="match-label">${i + 1}</span>
                 </div>
             `;
         }).join('');
+
+        let connectionLines = '';
+        if (Object.keys(pairs).length > 0) {
+            connectionLines = '<svg class="connection-lines" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">';
+            Object.keys(pairs).forEach(leftIndex => {
+                const rightIndex = pairs[leftIndex];
+                const isCorrect = this.isAnswerSubmitted && parseInt(leftIndex) === rightIndex;
+                const lineColor = isCorrect ? '#10b981' : (this.isAnswerSubmitted ? '#ef4444' : colors[parseInt(leftIndex) % colors.length]);
+                connectionLines += `<path data-left="${leftIndex}" data-right="${rightIndex}" stroke="${lineColor}" stroke-width="3" fill="none" stroke-linecap="round" style="opacity:0.7"/>`;
+            });
+            connectionLines += '</svg>';
+        }
 
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
             </div>
-            <div class="matching-container">
-                <div class="match-column">
-                    <h4>左侧选项</h4>
-                    ${leftItems}
-                </div>
-                <div class="match-divider">→</div>
-                <div class="match-column">
-                    <h4>右侧选项</h4>
-                    ${rightItems}
+            <div class="matching-wrapper" style="position:relative;">
+                ${connectionLines}
+                <div class="matching-container">
+                    <div class="match-column">
+                        <h4>左侧选项</h4>
+                        ${leftItems}
+                    </div>
+                    <div class="match-divider" style="width:100px; flex:none;"></div>
+                    <div class="match-column">
+                        <h4>右侧选项</h4>
+                        ${rightItems}
+                    </div>
                 </div>
             </div>
             ${this.isAnswerSubmitted && question.explanation ? `
@@ -640,14 +664,56 @@ class App {
                         
                         selectedLeft = null;
                         this.renderQuestion();
+                        
+                        // 延迟绘制连接线
+                        setTimeout(() => {
+                            this.drawConnectionLines();
+                        }, 50);
                     });
                 });
+                
+                // 首次渲染后绘制连接线
+                setTimeout(() => {
+                    this.drawConnectionLines();
+                }, 50);
                 break;
                 
             case 'ordering':
                 this.setupDragDrop(container);
                 break;
         }
+    }
+    
+    drawConnectionLines() {
+        const svg = document.querySelector('.connection-lines');
+        if (!svg) return;
+        
+        const paths = svg.querySelectorAll('path');
+        paths.forEach(path => {
+            const leftIndex = path.dataset.left;
+            const rightIndex = path.dataset.right;
+            
+            const leftItem = document.querySelector(`.match-item.left[data-left="${leftIndex}"]`);
+            const rightItem = document.querySelector(`.match-item.right[data-right="${rightIndex}"]`);
+            
+            if (leftItem && rightItem) {
+                const leftRect = leftItem.getBoundingClientRect();
+                const rightRect = rightItem.getBoundingClientRect();
+                const svgRect = svg.getBoundingClientRect();
+                
+                const x1 = leftRect.right - svgRect.left;
+                const y1 = leftRect.top + leftRect.height / 2 - svgRect.top;
+                const x2 = rightRect.left - svgRect.left;
+                const y2 = rightRect.top + rightRect.height / 2 - svgRect.top;
+                
+                // 计算贝塞尔曲线控制点
+                const midX = (x1 + x2) / 2;
+                const cpOffset = Math.min(100, (x2 - x1) / 3);
+                
+                const d = `M ${x1} ${y1} C ${midX - cpOffset} ${y1}, ${midX + cpOffset} ${y2}, ${x2} ${y2}`;
+                path.setAttribute('d', d);
+            }
+        });
     }
 
     setupDragDrop(container) {
