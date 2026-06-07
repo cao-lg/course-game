@@ -1093,7 +1093,7 @@ body {
 
 /* Glow effect for correct answers */
 .option-item.correct::after {
-    content: '✓';
+    content: '\2713';
     font-size: 1.5rem;
     color: var(--success-color);
     font-weight: bold;
@@ -1101,7 +1101,7 @@ body {
 
 /* Cross for incorrect */
 .option-item.incorrect::after {
-    content: '✗';
+    content: '\2717';
     font-size: 1.5rem;
     color: var(--danger-color);
     font-weight: bold;
