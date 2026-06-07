@@ -548,6 +548,12 @@ class App {
             connectionLines += '</svg>';
         }
 
+        const confirmButtonHtml = (!this.isAnswerSubmitted && Object.keys(pairs).length > 0) ? `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
+            </div>
+        ` : '';
+
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
@@ -567,6 +573,7 @@ class App {
                     </div>
                 </div>
             </div>
+            ${confirmButtonHtml}
             ${this.isAnswerSubmitted && question.explanation ? `
                 <div class="explanation">
                     <h4><i class="fas fa-info-circle"></i> 解析</h4>
@@ -611,6 +618,12 @@ class App {
             `;
         }
 
+        const confirmButtonHtml = `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" id="confirmOrderingBtn">确认答案</button>
+            </div>
+        `;
+
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
@@ -620,6 +633,7 @@ class App {
             <div class="ordering-container">
                 ${itemsHtml}
             </div>
+            ${confirmButtonHtml}
         `;
     }
 
@@ -751,10 +765,105 @@ class App {
                 setTimeout(() => {
                     this.drawConnectionLines();
                 }, 50);
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmMatchingBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const pairs = this.selectedPairs[this.currentQuestionIndex] || {};
+                        
+                        // 检查是否全部匹配
+                        if (Object.keys(pairs).length !== question.pairs.length) {
+                            // 还没全部匹配，提示一下
+                            alert('请完成所有匹配再确认！');
+                            return;
+                        }
+
+                        // 检查是否全部正确
+                        const isCorrect = Object.keys(pairs).every(k => {
+                            const leftIndex = parseInt(k);
+                            const rightIndex = parseInt(pairs[k]);
+                            const selectedRightContent = question.pairs[rightIndex].right;
+                            const correctRightContent = question.pairs[leftIndex].right;
+                            return selectedRightContent === correctRightContent;
+                        });
+
+                        if (isCorrect) {
+                            this.game.playSound('correct');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+                        } else {
+                            this.game.playSound('incorrect');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+
+                            // 添加继续按钮
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                                    
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        this.game.playSound('click');
+                                        this.isAnswerSubmitted = false;
+                                        this.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
                 break;
                 
             case 'ordering':
                 this.setupDragDrop(container);
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmOrderingBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const order = this.orderedItems[this.currentQuestionIndex] || [];
+                        
+                        // 检查是否全部正确
+                        const isCorrect = order.every((val, i) => val === question.answer[i]);
+
+                        if (isCorrect) {
+                            this.game.playSound('correct');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+                        } else {
+                            this.game.playSound('incorrect');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+
+                            // 添加继续按钮
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                                    
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        this.game.playSound('click');
+                                        this.isAnswerSubmitted = false;
+                                        this.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
                 break;
         }
     }
