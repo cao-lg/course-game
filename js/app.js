@@ -450,6 +450,12 @@ class App {
             `;
         }).join('');
 
+        const confirmButtonHtml = (!this.isAnswerSubmitted && selected.length > 0) ? `
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="btn btn-primary" id="confirmMultipleBtn">确认答案</button>
+            </div>
+        ` : '';
+
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
@@ -459,6 +465,7 @@ class App {
             <div class="options-list">
                 ${optionsHtml}
             </div>
+            ${confirmButtonHtml}
             ${this.isAnswerSubmitted && question.explanation ? `
                 <div class="explanation">
                     <h4><i class="fas fa-info-circle"></i> 解析</h4>
@@ -659,6 +666,49 @@ class App {
                         this.renderQuestion();
                     });
                 });
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmMultipleBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const selected = this.selectedOptions[this.currentQuestionIndex] || [];
+                        const answer = question.answer || [];
+                        
+                        // 检查是否正确
+                        const isCorrect = selected.length === answer.length && 
+                            selected.every(s => answer.includes(s));
+                        
+                        if (isCorrect) {
+                            this.game.playSound('correct');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+                        } else {
+                            this.game.playSound('incorrect');
+                            this.isAnswerSubmitted = true;
+                            this.renderQuestion();
+                            
+                            // 这里直接显示解析，不再有继续按钮了
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                                    
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        this.game.playSound('click');
+                                        this.isAnswerSubmitted = false;
+                                        this.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
                 break;
                 
             case 'matching':
@@ -965,12 +1015,50 @@ class App {
             resultMessage.textContent = `${nickname}，别灰心，再试一次吧！`;
         }
         
+        // 设置奖杯颜色
+        const trophyIcon = document.querySelector('#resultIcon i');
+        let trophyColor;
+        switch(stars) {
+            case 3: trophyColor = '#f59e0b'; break; // 金色
+            case 2: trophyColor = '#94a3b8'; break; // 银色
+            case 1: trophyColor = '#cd7f32'; break; // 铜色
+            default: trophyColor = '#cbd5e1'; // 灰色
+        }
+        trophyIcon.style.color = trophyColor;
+        trophyIcon.style.fontSize = '4rem';
+        trophyIcon.style.textShadow = `0 0 20px ${trophyColor}`;
+        
         document.getElementById('resultStars').innerHTML = [1, 2, 3].map((i, index) => 
             `<i class="fas fa-star" style="animation-delay: ${index * 0.2}s; color: ${i <= stars ? '#f59e0b' : '#cbd5e1'}"></i>`
         ).join('');
         
         document.getElementById('accuracy').textContent = accuracy;
         document.getElementById('earnedPoints').textContent = points;
+
+        // 清除上次的评定标准，避免重复
+        const existingStandards = document.querySelector('.star-standards');
+        if (existingStandards) {
+            existingStandards.remove();
+        }
+
+        // 显示星星评定标准
+        const standardsHtml = `
+            <div style="margin-top: 20px; padding: 15px; background: #f8fafc; border-radius: 10px; text-align: left;">
+                <h4 style="color: #2563eb; margin-bottom: 10px;"><i class="fas fa-info-circle"></i> 星星评定标准</h4>
+                <p style="margin: 5px 0;">⭐⭐⭐ <strong>3星</strong>：正确率 ≥ 90%</p>
+                <p style="margin: 5px 0;">⭐⭐ <strong>2星</strong>：正确率 ≥ 70% 且 &lt; 90%</p>
+                <p style="margin: 5px 0;">⭐ <strong>1星</strong>：正确率 ≥ 60% 且 &lt; 70%</p>
+                <p style="margin: 5px 0; color: #94a3b8;">（正确率 &lt; 60% 无星星）</p>
+            </div>
+        `;
+        
+        let statsDiv = document.querySelector('.result-stats');
+        if (statsDiv) {
+            const standardsDiv = document.createElement('div');
+            standardsDiv.className = 'star-standards';
+            standardsDiv.innerHTML = standardsHtml;
+            statsDiv.parentNode.insertBefore(standardsDiv, statsDiv.nextSibling);
+        }
 
         this.showPage('result');
     }
