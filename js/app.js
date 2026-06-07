@@ -901,28 +901,54 @@ class App {
             this.isAnswerSubmitted = true;
             this.renderQuestion();
 
-            setTimeout(() => {
-                const stars = this.game.calculateStars(correctCount, this.currentSubLevel.quiz.length);
-                const points = this.game.calculateQuizPoints(correctCount, this.currentSubLevel.quiz.length, stars);
-                
-                const result = this.game.completeSubLevel(this.currentLevel.id, this.currentSubLevel.id, stars);
-                
-                const pointsEl = document.querySelector('.user-points');
-                if (pointsEl) {
-                    pointsEl.classList.add('points-updated');
-                    setTimeout(() => pointsEl.classList.remove('points-updated'), 500);
-                }
-                
-                this.game.addPoints(points);
-                
-                this.updateHeader();
-                this.updateProgress();
-                this.renderSidebar();
+            // 先更新用户数据
+            const stars = this.game.calculateStars(correctCount, this.currentSubLevel.quiz.length);
+            const points = this.game.calculateQuizPoints(correctCount, this.currentSubLevel.quiz.length, stars);
+            
+            const result = this.game.completeSubLevel(this.currentLevel.id, this.currentSubLevel.id, stars);
+            
+            const pointsEl = document.querySelector('.user-points');
+            if (pointsEl) {
+                pointsEl.classList.add('points-updated');
+                setTimeout(() => pointsEl.classList.remove('points-updated'), 500);
+            }
+            
+            this.game.addPoints(points);
+            
+            this.updateHeader();
+            this.updateProgress();
+            this.renderSidebar();
 
-                setTimeout(() => {
-                    this.showResult(correctCount, this.currentSubLevel.quiz.length, stars, points);
-                }, 500);
-            }, 800);
+            // 保存结果数据，供按钮点击时使用
+            this._pendingResult = {
+                correct: correctCount,
+                total: this.currentSubLevel.quiz.length,
+                stars,
+                points
+            };
+
+            // 添加查看结果按钮
+            const addButton = () => {
+                const container = document.getElementById('questionContainer');
+                if (container && !document.getElementById('viewResultBtn')) {
+                    const buttonHtml = `
+                        <div style="margin-top: 20px; text-align: center;">
+                            <button class="btn btn-primary" id="viewResultBtn">查看结果</button>
+                        </div>
+                    `;
+                    container.insertAdjacentHTML('beforeend', buttonHtml);
+                    
+                    document.getElementById('viewResultBtn').addEventListener('click', () => {
+                        this.game.playSound('click');
+                        const result = this._pendingResult;
+                        this._pendingResult = null;
+                        this.showResult(result.correct, result.total, result.stars, result.points);
+                    });
+                }
+            };
+
+            // 延迟一下添加按钮，保证DOM已渲染
+            setTimeout(addButton, 100);
         }
     }
 
