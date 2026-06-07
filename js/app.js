@@ -21,40 +21,20 @@ class App {
         this.updateProgress();
         this.bindEvents();
         
-        const savedNickname = this.game.getNickname();
-        const nicknameInput = document.getElementById('nickname');
-        const settingsNickname = document.getElementById('settingsNickname');
-        
-        if (nicknameInput) {
-            nicknameInput.value = savedNickname === '学习者' ? '' : savedNickname;
-        }
-        
-        if (settingsNickname) {
-            settingsNickname.value = savedNickname === '学习者' ? '' : savedNickname;
-            settingsNickname.addEventListener('input', () => {
-                if (settingsNickname.value.trim()) {
-                    this.game.setNickname(settingsNickname.value.trim());
-                    this.updateHeader();
-                }
-            });
-        }
-        
         this.showPage('welcome');
     }
 
     bindEvents() {
         document.getElementById('startBtn').addEventListener('click', () => {
-            this.game.playSound('click');
-            
-            const nicknameInput = document.getElementById('nickname');
-            if (nicknameInput && nicknameInput.value.trim()) {
-                this.game.setNickname(nicknameInput.value.trim());
-            } else {
-                this.game.setNickname('学习者');
+            try {
+                this.game.playSound('click');
+                
+                this.showPage('level');
+                this.renderLevel(levelsData[0]);
+            } catch (e) {
+                console.error('Start button error:', e);
+                alert('启动失败，请刷新页面重试');
             }
-            
-            this.showPage('level');
-            this.renderLevel(levelsData[0]);
         });
 
         document.getElementById('settingsBtn').addEventListener('click', () => {
@@ -62,10 +42,20 @@ class App {
             const settingsNickname = document.getElementById('settingsNickname');
             const currentNickname = this.game.getNickname();
             if (settingsNickname) {
-                settingsNickname.value = currentNickname === '学习者' ? '' : currentNickname;
+                settingsNickname.value = currentNickname;
             }
             this.showPage('settings');
         });
+        
+        const settingsNickname = document.getElementById('settingsNickname');
+        if (settingsNickname) {
+            settingsNickname.addEventListener('input', () => {
+                if (settingsNickname.value.trim()) {
+                    this.game.setNickname(settingsNickname.value.trim());
+                    this.updateHeader();
+                }
+            });
+        }
 
         document.getElementById('backToLevel').addEventListener('click', () => {
             this.game.playSound('click');
