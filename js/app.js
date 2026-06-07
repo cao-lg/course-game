@@ -9,6 +9,9 @@ class App {
         this.userAnswers = [];
         this.isAnswerSubmitted = false;
         this.hasStarted = false;
+        this.selectedPairs = {}; // 用于匹配题
+        this.orderedItems = []; // 用于排序题
+        this.selectedOptions = {}; // 用于多选题
         this.init();
     }
 
@@ -18,7 +21,6 @@ class App {
         this.updateProgress();
         this.bindEvents();
         
-        // 初始化昵称
         const savedNickname = this.game.getNickname();
         const nicknameInput = document.getElementById('nickname');
         const settingsNickname = document.getElementById('settingsNickname');
@@ -44,12 +46,10 @@ class App {
         document.getElementById('startBtn').addEventListener('click', () => {
             this.game.playSound('click');
             
-            // 保存昵称
             const nicknameInput = document.getElementById('nickname');
             if (nicknameInput && nicknameInput.value.trim()) {
                 this.game.setNickname(nicknameInput.value.trim());
             } else {
-                // 如果没有输入，使用默认名称
                 this.game.setNickname('学习者');
             }
             
@@ -59,7 +59,6 @@ class App {
 
         document.getElementById('settingsBtn').addEventListener('click', () => {
             this.game.playSound('click');
-            // 加载当前昵称到设置页面
             const settingsNickname = document.getElementById('settingsNickname');
             const currentNickname = this.game.getNickname();
             if (settingsNickname) {
@@ -144,6 +143,24 @@ class App {
             this.showPage('level');
         });
 
+        document.getElementById('showWrongAnswers').addEventListener('click', () => {
+            this.game.playSound('click');
+            this.renderWrongAnswers();
+            this.showPage('wrongAnswers');
+        });
+
+        document.getElementById('backFromWrongAnswers').addEventListener('click', () => {
+            this.game.playSound('click');
+            this.showPage('level');
+        });
+
+        document.getElementById('clearWrongAnswers').addEventListener('click', () => {
+            if (confirm('确定要清空错题本吗？')) {
+                this.game.clearWrongAnswers();
+                this.renderWrongAnswers();
+            }
+        });
+
         const soundToggle = document.getElementById('soundToggle');
         if (this.game.isSoundEnabled()) {
             soundToggle.classList.add('active');
@@ -212,9 +229,10 @@ class App {
             const unlocked = this.game.isSubLevelUnlocked(level.id, subLevel.id);
             const completed = this.game.isSubLevelCompleted(level.id, subLevel.id);
             const stars = this.game.getSubLevelStars(level.id, subLevel.id);
+            const isPractical = subLevel.isPractical;
 
             return `
-                <div class="sub-level-card ${completed ? 'completed' : ''} ${!unlocked ? 'locked' : ''}"
+                <div class="sub-level-card ${completed ? 'completed' : ''} ${!unlocked ? 'locked' : ''} ${isPractical ? 'practical' : ''}"
                      data-level-id="${level.id}" 
                      data-sub-level-id="${subLevel.id}">
                     <div class="sub-level-header">
@@ -230,6 +248,7 @@ class App {
                     </div>
                     <div class="sub-level-title">${subLevel.title}</div>
                     <div class="sub-level-desc">${subLevel.description}</div>
+                    ${isPractical ? '<div class="practical-badge"><i class="fas fa-tasks"></i> 实战任务</div>' : ''}
                 </div>
             `;
         }).join('');
@@ -314,6 +333,9 @@ class App {
     startQuiz() {
         this.currentQuestionIndex = 0;
         this.userAnswers = new Array(this.currentSubLevel.quiz.length).fill(null);
+        this.selectedPairs = {};
+        this.orderedItems = [];
+        this.selectedOptions = {};
         this.isAnswerSubmitted = false;
         this.showPage('quiz');
         this.renderQuestion();
@@ -331,6 +353,44 @@ class App {
         currentQuestionEl.textContent = this.currentQuestionIndex + 1;
         totalQuestionsEl.textContent = this.currentSubLevel.quiz.length;
 
+        let questionHtml = '';
+        
+        switch(question.type) {
+            case 'single':
+            case 'judge':
+                questionHtml = this.renderSingleChoiceQuestion(question);
+                break;
+            case 'multiple':
+                questionHtml = this.renderMultipleChoiceQuestion(question);
+                break;
+            case 'matching':
+                questionHtml = this.renderMatchingQuestion(question);
+                break;
+            case 'ordering':
+                questionHtml = this.renderOrderingQuestion(question);
+                break;
+            default:
+                questionHtml = this.renderSingleChoiceQuestion(question);
+        }
+
+        questionContainer.innerHTML = questionHtml;
+
+        if (!this.isAnswerSubmitted) {
+            this.bindQuestionEvents(question);
+        }
+
+        prevBtn.disabled = this.currentQuestionIndex === 0;
+        
+        if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
+            nextBtn.style.display = 'inline-flex';
+            submitBtn.style.display = 'none';
+        } else {
+            nextBtn.style.display = 'none';
+            submitBtn.style.display = 'inline-flex';
+        }
+    }
+
+    renderSingleChoiceQuestion(question) {
         const optionsHtml = question.options.map((option, index) => {
             let classes = 'option-item';
             if (this.isAnswerSubmitted) {
@@ -350,7 +410,7 @@ class App {
             `;
         }).join('');
 
-        questionContainer.innerHTML = `
+        return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
@@ -365,67 +425,299 @@ class App {
                 </div>
             ` : ''}
         `;
-
-        if (!this.isAnswerSubmitted) {
-            questionContainer.querySelectorAll('.option-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const index = parseInt(item.dataset.index);
-                    this.userAnswers[this.currentQuestionIndex] = index;
-                    
-                    // 即时检查答案并显示
-                    if (index === question.answer) {
-                        this.game.playSound('correct');
-                    } else {
-                        this.game.playSound('incorrect');
-                        // 显示即时解析
-                        this.showInstantExplanation(question, index);
-                        return;
-                    }
-                    
-                    this.renderQuestion();
-                });
-            });
-        }
-
-        prevBtn.disabled = this.currentQuestionIndex === 0;
-        
-        if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
-            nextBtn.style.display = 'inline-flex';
-            submitBtn.style.display = 'none';
-        } else {
-            nextBtn.style.display = 'none';
-            submitBtn.style.display = 'inline-flex';
-        }
     }
-    
-    // 显示即时解析
-    showInstantExplanation(question, selectedIndex) {
-        const questionContainer = document.getElementById('questionContainer');
-        const isCorrect = selectedIndex === question.answer;
-        
+
+    renderMultipleChoiceQuestion(question) {
+        const selected = this.selectedOptions[this.currentQuestionIndex] || [];
         const optionsHtml = question.options.map((option, index) => {
-            let classes = 'option-item';
-            if (index === question.answer) {
-                classes += ' correct';
-            } else if (index === selectedIndex) {
-                classes += ' incorrect';
+            let classes = 'option-item checkbox-option';
+            if (this.isAnswerSubmitted) {
+                if (question.answer.includes(index)) {
+                    classes += ' correct';
+                } else if (selected.includes(index)) {
+                    classes += ' incorrect';
+                }
+            } else if (selected.includes(index)) {
+                classes += ' selected';
             }
             return `
                 <div class="${classes}" data-index="${index}">
-                    <div class="option-letter">${String.fromCharCode(65 + index)}</div>
+                    <div class="option-checkbox">
+                        <i class="fas ${selected.includes(index) ? 'fa-check-square' : 'fa-square'}"></i>
+                    </div>
                     <div class="option-text">${option}</div>
                 </div>
             `;
         }).join('');
+
+        return `
+            <div class="question-text">
+                <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                ${question.question}
+                <span style="color: #2563eb; font-size: 0.9rem; margin-left: 10px;">（多选）</span>
+            </div>
+            <div class="options-list">
+                ${optionsHtml}
+            </div>
+            ${this.isAnswerSubmitted && question.explanation ? `
+                <div class="explanation">
+                    <h4><i class="fas fa-info-circle"></i> 解析</h4>
+                    <p>${question.explanation}</p>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    renderMatchingQuestion(question) {
+        if (!this.selectedPairs[this.currentQuestionIndex]) {
+            this.selectedPairs[this.currentQuestionIndex] = {};
+        }
+        const pairs = this.selectedPairs[this.currentQuestionIndex];
+        
+        const leftItems = question.pairs.map((p, i) => {
+            const isMatched = pairs[i] !== undefined;
+            return `
+                <div class="match-item left ${isMatched ? 'matched' : ''}" data-left="${i}">
+                    <span class="match-label">${String.fromCharCode(65 + i)}</span>
+                    <span class="match-text">${p.left}</span>
+                </div>
+            `;
+        }).join('');
+
+        const rightItems = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5).map(i => {
+            const matchedLeft = Object.keys(pairs).find(k => pairs[k] === i);
+            const isMatched = matchedLeft !== undefined;
+            return `
+                <div class="match-item right ${isMatched ? 'matched' : ''}" data-right="${i}">
+                    <span class="match-label">${i + 1}</span>
+                    <span class="match-text">${question.pairs[i].right}</span>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="question-text">
+                <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                ${question.question}
+            </div>
+            <div class="matching-container">
+                <div class="match-column">
+                    <h4>左侧选项</h4>
+                    ${leftItems}
+                </div>
+                <div class="match-divider">→</div>
+                <div class="match-column">
+                    <h4>右侧选项</h4>
+                    ${rightItems}
+                </div>
+            </div>
+            ${this.isAnswerSubmitted && question.explanation ? `
+                <div class="explanation">
+                    <h4><i class="fas fa-info-circle"></i> 解析</h4>
+                    <p>${question.explanation}</p>
+                </div>
+            ` : ''}
+        `;
+    }
+
+    renderOrderingQuestion(question) {
+        if (!this.orderedItems[this.currentQuestionIndex]) {
+            this.orderedItems[this.currentQuestionIndex] = [...question.options].map((_, i) => i);
+        }
+        const order = this.orderedItems[this.currentQuestionIndex];
+        
+        const itemsHtml = order.map((originalIndex, currentIndex) => {
+            return `
+                <div class="order-item" data-index="${originalIndex}" data-pos="${currentIndex}" draggable="true">
+                    <span class="order-number">${currentIndex + 1}</span>
+                    <span class="order-text">${question.options[originalIndex]}</span>
+                    <span class="order-handle"><i class="fas fa-grip-vertical"></i></span>
+                </div>
+            `;
+        }).join('');
+
+        if (this.isAnswerSubmitted) {
+            const isCorrect = order.every((val, i) => val === question.answer[i]);
+            return `
+                <div class="question-text">
+                    <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                    ${question.question}
+                </div>
+                <div class="ordering-container ${isCorrect ? 'correct' : 'incorrect'}">
+                    ${itemsHtml}
+                </div>
+                ${question.explanation ? `
+                    <div class="explanation">
+                        <h4><i class="fas fa-info-circle"></i> 解析</h4>
+                        <p>${question.explanation}</p>
+                    </div>
+                ` : ''}
+            `;
+        }
+
+        return `
+            <div class="question-text">
+                <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                ${question.question}
+                <span style="color: #64748b; font-size: 0.9rem; margin-left: 10px;">（拖拽排列）</span>
+            </div>
+            <div class="ordering-container">
+                ${itemsHtml}
+            </div>
+        `;
+    }
+
+    bindQuestionEvents(question) {
+        const container = document.getElementById('questionContainer');
+
+        switch(question.type) {
+            case 'single':
+            case 'judge':
+                container.querySelectorAll('.option-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const index = parseInt(item.dataset.index);
+                        this.userAnswers[this.currentQuestionIndex] = index;
+                        
+                        if (index === question.answer) {
+                            this.game.playSound('correct');
+                        } else {
+                            this.game.playSound('incorrect');
+                            this.showInstantExplanation(question, index);
+                            return;
+                        }
+                        
+                        this.renderQuestion();
+                    });
+                });
+                break;
+                
+            case 'multiple':
+                container.querySelectorAll('.option-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const index = parseInt(item.dataset.index);
+                        if (!this.selectedOptions[this.currentQuestionIndex]) {
+                            this.selectedOptions[this.currentQuestionIndex] = [];
+                        }
+                        const selected = this.selectedOptions[this.currentQuestionIndex];
+                        
+                        if (selected.includes(index)) {
+                            selected.splice(selected.indexOf(index), 1);
+                        } else {
+                            selected.push(index);
+                        }
+                        
+                        this.game.playSound('click');
+                        this.renderQuestion();
+                    });
+                });
+                break;
+                
+            case 'matching':
+                let selectedLeft = null;
+                
+                container.querySelectorAll('.match-item.left').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const leftIndex = parseInt(item.dataset.left);
+                        this.game.playSound('click');
+                        
+                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                        selectedLeft = leftIndex;
+                    });
+                });
+                
+                container.querySelectorAll('.match-item.right').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (selectedLeft === null) return;
+                        
+                        const rightIndex = parseInt(item.dataset.right);
+                        this.game.playSound('click');
+                        
+                        if (!this.selectedPairs[this.currentQuestionIndex]) {
+                            this.selectedPairs[this.currentQuestionIndex] = {};
+                        }
+                        this.selectedPairs[this.currentQuestionIndex][selectedLeft] = rightIndex;
+                        
+                        selectedLeft = null;
+                        this.renderQuestion();
+                    });
+                });
+                break;
+                
+            case 'ordering':
+                this.setupDragDrop(container);
+                break;
+        }
+    }
+
+    setupDragDrop(container) {
+        let draggedItem = null;
+        
+        container.querySelectorAll('.order-item').forEach(item => {
+            item.addEventListener('dragstart', (e) => {
+                draggedItem = item;
+                item.classList.add('dragging');
+            });
+            
+            item.addEventListener('dragend', () => {
+                item.classList.remove('dragging');
+                draggedItem = null;
+            });
+            
+            item.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                item.classList.add('drag-over');
+            });
+            
+            item.addEventListener('dragleave', () => {
+                item.classList.remove('drag-over');
+            });
+            
+            item.addEventListener('drop', (e) => {
+                e.preventDefault();
+                item.classList.remove('drag-over');
+                
+                if (draggedItem && draggedItem !== item) {
+                    const draggedIndex = parseInt(draggedItem.dataset.pos);
+                    const targetIndex = parseInt(item.dataset.pos);
+                    const order = this.orderedItems[this.currentQuestionIndex];
+                    
+                    [order[draggedIndex], order[targetIndex]] = [order[targetIndex], order[draggedIndex]];
+                    
+                    this.game.playSound('click');
+                    this.renderQuestion();
+                }
+            });
+        });
+    }
+
+    showInstantExplanation(question, selectedIndex) {
+        const questionContainer = document.getElementById('questionContainer');
+        
+        let optionsHtml = '';
+        if (question.type === 'single' || question.type === 'judge') {
+            optionsHtml = question.options.map((option, index) => {
+                let classes = 'option-item';
+                if (index === question.answer) {
+                    classes += ' correct';
+                } else if (index === selectedIndex) {
+                    classes += ' incorrect';
+                }
+                return `
+                    <div class="${classes}" data-index="${index}">
+                        <div class="option-letter">${String.fromCharCode(65 + index)}</div>
+                        <div class="option-text">${option}</div>
+                    </div>
+                `;
+            }).join('');
+        }
 
         questionContainer.innerHTML = `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
             </div>
-            <div class="options-list">
-                ${optionsHtml}
-            </div>
+            ${optionsHtml ? `<div class="options-list">${optionsHtml}</div>` : ''}
             <div class="explanation">
                 <h4><i class="fas fa-lightbulb"></i> 提示与解析</h4>
                 <p>${question.explanation}</p>
@@ -435,15 +727,13 @@ class App {
             </div>
         `;
         
-        // 用户可以查看解析后继续
         document.getElementById('continueBtn').addEventListener('click', () => {
             this.game.playSound('click');
             this.isAnswerSubmitted = false;
             this.nextQuestionOrFinish();
         });
     }
-    
-    // 检查是否继续还是完成
+
     nextQuestionOrFinish() {
         if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
             this.currentQuestionIndex++;
@@ -469,19 +759,41 @@ class App {
 
     submitQuiz() {
         if (!this.isAnswerSubmitted) {
-            if (this.userAnswers.some(a => a === null)) {
-                alert('请先回答所有问题！');
-                return;
-            }
-            this.isAnswerSubmitted = true;
-            
             let correctCount = 0;
+            
             this.currentSubLevel.quiz.forEach((q, index) => {
-                const isCorrect = this.userAnswers[index] === q.answer;
-                if (isCorrect) correctCount++;
-                this.game.recordAnswer(isCorrect);
+                let isCorrect = false;
+                
+                switch(q.type) {
+                    case 'single':
+                    case 'judge':
+                        isCorrect = this.userAnswers[index] === q.answer;
+                        break;
+                    case 'multiple':
+                        const selected = this.selectedOptions[index] || [];
+                        const answer = q.answer || [];
+                        isCorrect = selected.length === answer.length && 
+                            selected.every(s => answer.includes(s));
+                        break;
+                    case 'matching':
+                        const pairs = this.selectedPairs[index] || {};
+                        isCorrect = Object.keys(pairs).length === q.pairs.length &&
+                            Object.keys(pairs).every(k => parseInt(pairs[k]) === parseInt(k));
+                        break;
+                    case 'ordering':
+                        const order = this.orderedItems[index] || [];
+                        isCorrect = order.every((val, i) => val === q.answer[i]);
+                        break;
+                }
+                
+                if (isCorrect) {
+                    correctCount++;
+                }
+                
+                this.game.recordAnswer(isCorrect, q);
             });
             
+            this.isAnswerSubmitted = true;
             this.renderQuestion();
 
             setTimeout(() => {
@@ -515,7 +827,6 @@ class App {
         
         document.getElementById('resultTitle').textContent = accuracy >= 60 ? '太棒了！' : '继续加油！';
         
-        // 显示任务完成消息
         const resultMessage = document.getElementById('resultMessage');
         if (accuracy >= 60) {
             resultMessage.textContent = `恭喜 ${nickname} 完成「${this.currentSubLevel.title}」任务！`;
@@ -527,7 +838,7 @@ class App {
             `<i class="fas fa-star" style="animation-delay: ${index * 0.2}s; color: ${i <= stars ? '#f59e0b' : '#cbd5e1'}"></i>`
         ).join('');
         
-        document.getElementById('accuracy').textContent = accuracy; // 移除多余的%
+        document.getElementById('accuracy').textContent = accuracy;
         document.getElementById('earnedPoints').textContent = points;
 
         this.showPage('result');
@@ -556,6 +867,56 @@ class App {
                 this.renderLevel(level);
             }
         }
+    }
+
+    renderWrongAnswers() {
+        const wrongAnswers = this.game.getWrongAnswers();
+        const container = document.getElementById('wrongAnswersContent');
+        
+        if (wrongAnswers.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-check-circle"></i>
+                    <h3>太棒了！</h3>
+                    <p>错题本是空的，继续保持！</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = wrongAnswers.map((q, qIndex) => {
+            let questionPreview = '';
+            if (q.options) {
+                questionPreview = q.options.slice(0, 2).map(opt => `<span class="preview-option">${opt}</span>`).join('');
+            }
+            
+            return `
+                <div class="wrong-answer-card">
+                    <div class="wrong-answer-header">
+                        <h4><i class="fas fa-times-circle"></i> 错题 ${qIndex + 1}</h4>
+                        <span class="wrong-answer-type">${this.getQuestionTypeText(q.type)}</span>
+                    </div>
+                    <div class="wrong-answer-question">${q.question}</div>
+                    ${questionPreview ? `<div class="wrong-answer-preview">${questionPreview}</div>` : ''}
+                    ${q.explanation ? `
+                        <div class="wrong-answer-explanation">
+                            <i class="fas fa-lightbulb"></i> ${q.explanation}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    getQuestionTypeText(type) {
+        const types = {
+            'single': '单选题',
+            'multiple': '多选题',
+            'judge': '判断题',
+            'matching': '匹配题',
+            'ordering': '排序题'
+        };
+        return types[type] || '题目';
     }
 
     showPage(page) {

@@ -120,8 +120,12 @@ class Game {
                 subLevelStars: {},
                 unlockedMedals: [],
                 soundEnabled: true,
-                theme: 'blue'
+                theme: 'blue',
+                wrongAnswers: []
             };
+        }
+        if (!this.data.wrongAnswers) {
+            this.data.wrongAnswers = [];
         }
         this.saveData();
     }
@@ -213,17 +217,60 @@ class Game {
     }
 
     // 记录答题
-    recordAnswer(correct) {
+    recordAnswer(correct, question = null) {
         this.data.totalAnswered++;
         if (correct) {
             this.data.totalCorrect++;
             this.playSound('correct');
+            // 如果这道题之前在错题本里，移除它
+            if (question) {
+                this.removeWrongAnswer(question);
+            }
         } else {
             this.playSound('incorrect');
+            // 添加到错题本
+            if (question) {
+                this.addWrongAnswer(question);
+            }
         }
         this.saveData();
         const medal = this.checkMedals();
         return medal;
+    }
+
+    // 添加到错题本
+    addWrongAnswer(question) {
+        if (!this.data.wrongAnswers) {
+            this.data.wrongAnswers = [];
+        }
+        const exists = this.data.wrongAnswers.some(wa => 
+            wa.question === question.question && wa.type === question.type
+        );
+        if (!exists) {
+            this.data.wrongAnswers.push({
+                ...question,
+                addedAt: Date.now()
+            });
+        }
+    }
+
+    // 从错题本移除
+    removeWrongAnswer(question) {
+        if (!this.data.wrongAnswers) return;
+        this.data.wrongAnswers = this.data.wrongAnswers.filter(wa => 
+            !(wa.question === question.question && wa.type === question.type)
+        );
+    }
+
+    // 获取错题本
+    getWrongAnswers() {
+        return this.data.wrongAnswers || [];
+    }
+
+    // 清空错题本
+    clearWrongAnswers() {
+        this.data.wrongAnswers = [];
+        this.saveData();
     }
 
     // 记录学习时间

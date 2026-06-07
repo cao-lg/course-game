@@ -44,6 +44,11 @@
                 <div class="sidebar-header">
                     <h3><i class="fas fa-list-ul"></i> 关卡列表</h3>
                 </div>
+                <div class="sidebar-actions">
+                    <button class="sidebar-action-btn" id="showWrongAnswers">
+                        <i class="fas fa-book"></i> 错题本
+                    </button>
+                </div>
                 <nav class="level-nav" id="levelNav">
                     <!-- 关卡列表会通过JS动态生成 -->
                 </nav>
@@ -170,6 +175,18 @@
                     </div>
                     <div class="medals-container" id="medalsContainer">
                         <!-- 勋章列表 -->
+                    </div>
+                </div>
+
+                <!-- 错题本页面 -->
+                <div class="wrong-answers-page" id="wrongAnswersPage" style="display: none;">
+                    <div class="wrong-answers-header">
+                        <button class="back-btn" id="backFromWrongAnswers"><i class="fas fa-arrow-left"></i> 返回</button>
+                        <h2><i class="fas fa-book"></i> 错题本</h2>
+                        <button class="btn btn-warning" id="clearWrongAnswers">清空错题本</button>
+                    </div>
+                    <div class="wrong-answers-content" id="wrongAnswersContent">
+                        <!-- 错题列表 -->
                     </div>
                 </div>
 
