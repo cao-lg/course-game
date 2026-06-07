@@ -127,9 +127,9 @@ const levelsData = [
                         explanation: "经济因素包括经济增长、利率、汇率、通货膨胀等。"
                     },
                     {
-                        type: "matching",
+                        type: "select-matching",
                         question: "请将PESTEL因素与对应的内容匹配：",
-                        pairs: [
+                        options: [
                             { left: "政治", right: "政府政策、政治稳定性" },
                             { left: "社会", right: "人口结构、文化传统" },
                             { left: "技术", right: "互联网、大数据、AI" },
@@ -165,9 +165,9 @@ const levelsData = [
                         explanation: "政府政策属于PESTEL分析中的政治因素，不属于波特五力。"
                     },
                     {
-                        type: "matching",
+                        type: "select-matching",
                         question: "请将五力与对应的含义匹配：",
-                        pairs: [
+                        options: [
                             { left: "同行业竞争者", right: "现有企业之间的竞争程度" },
                             { left: "潜在新进入者", right: "新企业进入行业的门槛" },
                             { left: "替代品威胁", right: "替代产品的价格、性能" },
@@ -205,9 +205,9 @@ const levelsData = [
                 ],
                 quiz: [
                     {
-                        type: "matching",
+                        type: "select-matching",
                         question: "请将SWOT分析要素与对应的含义匹配：",
-                        pairs: [
+                        options: [
                             { left: "优势", right: "企业内部的优势和核心竞争力" },
                             { left: "劣势", right: "企业内部的不足和需要改进的地方" },
                             { left: "机会", right: "外部环境中对企业有利的因素" },
@@ -299,9 +299,9 @@ const levelsData = [
                 ],
                 quiz: [
                     {
-                        type: "matching",
+                        type: "select-matching",
                         question: "请将目标市场策略与对应的含义匹配：",
-                        pairs: [
+                        options: [
                             { left: "无差异策略", right: "忽略差异，向整个市场提供单一产品" },
                             { left: "差异策略", right: "选择多个细分市场，为每个市场设计不同产品" },
                             { left: "集中策略", right: "集中力量于一个或少数几个细分市场" }
@@ -455,9 +455,9 @@ const levelsData = [
                         explanation: "撇脂定价是新产品上市时定高价，快速回收成本。"
                     },
                     {
-                        type: "matching",
+                        type: "select-matching",
                         question: "请将定价方法与对应的策略匹配：",
-                        pairs: [
+                        options: [
                             { left: "成本导向", right: "以成本为基础定价" },
                             { left: "需求导向", right: "根据客户感知价值定价" },
                             { left: "竞争导向", right: "以竞争对手价格为参考" }

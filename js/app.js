@@ -353,8 +353,8 @@ class App {
             case 'multiple':
                 questionHtml = this.renderMultipleChoiceQuestion(question);
                 break;
-            case 'matching':
-                questionHtml = this.renderMatchingQuestion(question);
+            case 'select-matching':
+                questionHtml = this.renderSelectMatchingQuestion(question);
                 break;
             case 'ordering':
                 questionHtml = this.renderOrderingQuestion(question);
@@ -369,6 +369,14 @@ class App {
             this.bindQuestionEvents(question);
         }
 
+        // 如果是匹配题，初始化Canvas并绘制连线
+        if (question.type === 'matching') {
+            setTimeout(() => {
+                this.initMatchingCanvas(question);
+                this.drawMatchingLines(question);
+            }, 50);
+        }
+
         prevBtn.disabled = this.currentQuestionIndex === 0;
         
         if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
@@ -378,6 +386,70 @@ class App {
             nextBtn.style.display = 'none';
             submitBtn.style.display = 'inline-flex';
         }
+    }
+    
+    initMatchingCanvas(question) {
+        const canvas = document.getElementById('matchingCanvas');
+        if (!canvas) return;
+        
+        const container = document.getElementById('matchingContainer');
+        if (!container) return;
+        
+        // 设置Canvas尺寸
+        const rect = container.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.pointerEvents = 'none';
+        canvas.style.zIndex = '1';
+    }
+    
+    drawMatchingLines(question) {
+        const canvas = document.getElementById('matchingCanvas');
+        if (!canvas) return;
+        
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('matchingContainer');
+        if (!ctx || !container) return;
+        
+        // 清空Canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 设置线条样式
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        
+        const pairs = this.selectedPairs[this.currentQuestionIndex] || {};
+        const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+        const containerRect = container.getBoundingClientRect();
+        
+        Object.keys(pairs).forEach(leftIndexStr => {
+            const leftIndex = parseInt(leftIndexStr);
+            const rightIndex = pairs[leftIndex];
+            
+            const leftItem = document.getElementById(`match-left-${leftIndex}`);
+            const rightItem = document.getElementById(`match-right-${rightIndex}`);
+            
+            if (leftItem && rightItem) {
+                const leftRect = leftItem.getBoundingClientRect();
+                const rightRect = rightItem.getBoundingClientRect();
+                
+                // 计算相对于Canvas的坐标
+                const x1 = leftRect.right - containerRect.left;
+                const y1 = leftRect.top + leftRect.height / 2 - containerRect.top;
+                const x2 = rightRect.left - containerRect.left;
+                const y2 = rightRect.top + rightRect.height / 2 - containerRect.top;
+                
+                // 绘制连线
+                ctx.beginPath();
+                ctx.strokeStyle = colors[leftIndex % colors.length];
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+            }
+        });
     }
 
     renderSingleChoiceQuestion(question) {
@@ -465,6 +537,84 @@ class App {
         `;
     }
 
+    renderSelectMatchingQuestion(question) {
+        if (!this.selectedPairs[this.currentQuestionIndex]) {
+            this.selectedPairs[this.currentQuestionIndex] = {};
+        }
+        const pairs = this.selectedPairs[this.currentQuestionIndex];
+
+        // 把 right 列表打乱（仅显示顺序）
+        if (!this.shuffledRightIndices) this.shuffledRightIndices = {};
+        if (!this.shuffledRightIndices[this.currentQuestionIndex]) {
+            this.shuffledRightIndices[this.currentQuestionIndex] = question.options.map((_, i) => i).sort(() => Math.random() - 0.5);
+        }
+        const shuffledRight = this.shuffledRightIndices[this.currentQuestionIndex];
+
+        // 左侧列表：每行一个下拉框
+        const leftItems = question.options.map((p, i) => {
+            const selectedRightIdx = pairs[i];
+            const selectedRightText = selectedRightIdx !== undefined ? question.options[selectedRightIdx].right : '';
+
+            // 判断已提交时的对错
+            let rowClass = '';
+            if (this.isAnswerSubmitted && selectedRightIdx !== undefined) {
+                const correct = question.options[selectedRightIdx].right === p.right;
+                rowClass = correct ? 'select-match-correct' : 'select-match-incorrect';
+            }
+
+            // 构造下拉框选项
+            const optionTags = ['<option value="">-- 请选择 --</option>']
+                .concat(shuffledRight.map(ri => {
+                    const sel = ri === selectedRightIdx ? 'selected' : '';
+                    return `<option value="${ri}" ${sel}>${question.options[ri].right}</option>`;
+                }))
+                .join('');
+
+            return `
+                <div class="select-match-row ${rowClass}" data-left="${i}">
+                    <span class="select-match-label">${String.fromCharCode(65 + i)}.</span>
+                    <span class="select-match-left">${p.left}</span>
+                    <span class="select-match-arrow">→</span>
+                    <select class="select-match-select" data-left-index="${i}" ${this.isAnswerSubmitted ? 'disabled' : ''}>
+                        ${optionTags}
+                    </select>
+                    ${this.isAnswerSubmitted ?
+                        `<span class="select-match-feedback">${question.options[selectedRightIdx].right === p.right ? '✓' : '✗ 正确: ' + p.right}</span>`
+                        : ''}
+                </div>
+            `;
+        }).join('');
+
+        let confirmButtonHtml = '';
+        if (!this.isAnswerSubmitted) {
+            confirmButtonHtml = `
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="question-text">
+                <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                ${question.question}
+            </div>
+            <p style="color: #64748b; margin-bottom: 15px; font-size: 0.9rem;">
+                <strong>配对说明：</strong>在每个左侧项的下拉框中选择对应的右侧内容
+            </p>
+            <div class="select-matching-container">
+                ${leftItems}
+            </div>
+            ${confirmButtonHtml}
+            ${this.isAnswerSubmitted && question.explanation ? `
+                <div class="explanation">
+                    <h4><i class="fas fa-info-circle"></i> 解析</h4>
+                    <p>${question.explanation}</p>
+                </div>
+            ` : ''}
+        `;
+    }
+
     renderMatchingQuestion(question) {
         if (!this.selectedPairs[this.currentQuestionIndex]) {
             this.selectedPairs[this.currentQuestionIndex] = {};
@@ -495,7 +645,9 @@ class App {
             }
             
             return `
-                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-left="${i}">
+                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" 
+                     data-left="${i}" 
+                     id="match-left-${i}">
                     <span class="match-label" style="background-color: ${colors[i % colors.length]}">${String.fromCharCode(65 + i)}</span>
                     <span class="match-text">${p.left}</span>
                 </div>
@@ -519,7 +671,9 @@ class App {
             
             const colorIndex = isMatched ? parseInt(matchedLeft) : shuffledRight.indexOf(i);
             return `
-                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-right="${i}">
+                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" 
+                     data-right="${i}" 
+                     id="match-right-${i}">
                     <span class="match-label" style="background-color: ${colors[colorIndex % colors.length]}">${i + 1}</span>
                     <span class="match-text">${question.pairs[i].right}</span>
                 </div>
@@ -540,13 +694,14 @@ class App {
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
             </div>
-            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">先点击左侧选项，再点击右侧选项进行配对</p>
-            <div class="matching-container">
-                <div class="match-column">
+            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">点击配对：先点左侧，再点右侧进行配对</p>
+            <div class="matching-container" id="matchingContainer">
+                <canvas id="matchingCanvas" class="matching-canvas"></canvas>
+                <div class="match-column left-column">
                     <h4>左侧选项</h4>
                     ${leftItems}
                 </div>
-                <div class="match-column">
+                <div class="match-column right-column">
                     <h4>右侧选项</h4>
                     ${rightItems}
                 </div>
@@ -617,6 +772,7 @@ class App {
 
     bindQuestionEvents(question) {
         const container = document.getElementById('questionContainer');
+        const self = this;
 
         switch(question.type) {
             case 'single':
@@ -673,103 +829,20 @@ class App {
                         
                         if (isCorrect) {
                             this.game.playSound('correct');
-                            this.isAnswerSubmitted = true;
-                            this.renderQuestion();
                         } else {
                             this.game.playSound('incorrect');
+                        }
+                        
+                        // 检查是否是最后一题
+                        if (this.currentQuestionIndex === this.currentSubLevel.quiz.length - 1) {
+                            // 如果是最后一题，直接提交整个测验
+                            this.isAnswerSubmitted = true;
+                            this.submitQuiz();
+                        } else {
+                            // 否则，显示解析和继续按钮
                             this.isAnswerSubmitted = true;
                             this.renderQuestion();
                             
-                            // 这里直接显示解析，不再有继续按钮了
-                            const addContinueBtn = () => {
-                                const btnContainer = document.getElementById('questionContainer');
-                                if (btnContainer && !document.getElementById('continueBtn')) {
-                                    const btnHtml = `
-                                        <div style="margin-top: 20px; text-align: center;">
-                                            <button class="btn btn-primary" id="continueBtn">继续</button>
-                                        </div>
-                                    `;
-                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
-                                    
-                                    document.getElementById('continueBtn').addEventListener('click', () => {
-                                        this.game.playSound('click');
-                                        this.isAnswerSubmitted = false;
-                                        this.nextQuestionOrFinish();
-                                    });
-                                }
-                            };
-                            setTimeout(addContinueBtn, 100);
-                        }
-                    });
-                }
-                break;
-            }
-                
-            case 'matching': {
-                let selectedLeft = null;
-                
-                container.querySelectorAll('.match-item.left').forEach(item => {
-                    item.addEventListener('click', () => {
-                        if (this.isAnswerSubmitted) return;
-                        
-                        const leftIndex = parseInt(item.dataset.left);
-                        this.game.playSound('click');
-                        
-                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                        selectedLeft = leftIndex;
-                    });
-                });
-                
-                container.querySelectorAll('.match-item.right').forEach(item => {
-                    item.addEventListener('click', () => {
-                        if (this.isAnswerSubmitted) return;
-                        if (selectedLeft === null) return;
-                        
-                        const rightIndex = parseInt(item.dataset.right);
-                        this.game.playSound('click');
-                        
-                        if (!this.selectedPairs[this.currentQuestionIndex]) {
-                            this.selectedPairs[this.currentQuestionIndex] = {};
-                        }
-                        this.selectedPairs[this.currentQuestionIndex][selectedLeft] = rightIndex;
-                        
-                        selectedLeft = null;
-                        this.renderQuestion();
-                    });
-                });
-
-                // 确认按钮事件
-                const matchingConfirmBtn = document.getElementById('confirmMatchingBtn');
-                if (matchingConfirmBtn) {
-                    matchingConfirmBtn.addEventListener('click', () => {
-                        const pairs = this.selectedPairs[this.currentQuestionIndex] || {};
-                        
-                        // 检查是否全部匹配
-                        if (Object.keys(pairs).length !== question.pairs.length) {
-                            // 还没全部匹配，提示一下
-                            alert('请完成所有匹配再确认！');
-                            return;
-                        }
-
-                        // 检查是否全部正确
-                        const isCorrect = Object.keys(pairs).every(k => {
-                            const leftIndex = parseInt(k);
-                            const rightIndex = parseInt(pairs[k]);
-                            const selectedRightContent = question.pairs[rightIndex].right;
-                            const correctRightContent = question.pairs[leftIndex].right;
-                            return selectedRightContent === correctRightContent;
-                        });
-
-                        if (isCorrect) {
-                            this.game.playSound('correct');
-                            this.isAnswerSubmitted = true;
-                            this.renderQuestion();
-                        } else {
-                            this.game.playSound('incorrect');
-                            this.isAnswerSubmitted = true;
-                            this.renderQuestion();
-
                             // 添加继续按钮
                             const addContinueBtn = () => {
                                 const btnContainer = document.getElementById('questionContainer');
@@ -795,6 +868,182 @@ class App {
                 break;
             }
                 
+            case 'select-matching': {
+                // 监听下拉框变化
+                container.querySelectorAll('.select-match-select').forEach(select => {
+                    select.addEventListener('change', (e) => {
+                        const leftIndex = parseInt(e.target.dataset.leftIndex);
+                        const rightValue = e.target.value;
+
+                        if (!self.selectedPairs[self.currentQuestionIndex]) {
+                            self.selectedPairs[self.currentQuestionIndex] = {};
+                        }
+
+                        if (rightValue === '') {
+                            delete self.selectedPairs[self.currentQuestionIndex][leftIndex];
+                        } else {
+                            self.selectedPairs[self.currentQuestionIndex][leftIndex] = parseInt(rightValue);
+                        }
+                        self.game.playSound('click');
+                    });
+                });
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmMatchingBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+
+                        // 检查是否全部匹配
+                        // 检查是否全部正确（未答题视为错误）
+                        const isCorrect = Object.keys(pairs).length === question.options.length &&
+                            Object.keys(pairs).every(k => {
+                                const leftIndex = parseInt(k);
+                                const rightIndex = parseInt(pairs[k]);
+                                return question.options[rightIndex].right === question.options[leftIndex].right;
+                            });
+
+                        if (isCorrect) {
+                            self.game.playSound('correct');
+                        } else {
+                            self.game.playSound('incorrect');
+                        }
+
+                        // 检查是否是最后一题
+                        if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
+                            self.isAnswerSubmitted = true;
+                            self.submitQuiz();
+                        } else {
+                            self.isAnswerSubmitted = true;
+                            self.renderQuestion();
+
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        self.game.playSound('click');
+                                        self.isAnswerSubmitted = false;
+                                        self.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
+                break;
+            }
+
+            case 'matching': {
+                // 已弃用,使用 select-matching 代替
+                let selectedLeft = null;
+
+                // 初始化Canvas
+                this.initMatchingCanvas(question);
+
+                // 左侧点击
+                container.querySelectorAll('.match-item.left').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (self.isAnswerSubmitted) return;
+                        
+                        const leftIndex = parseInt(item.dataset.left);
+                        self.game.playSound('click');
+                        
+                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                        selectedLeft = leftIndex;
+                    });
+                });
+                
+                // 右侧点击
+                container.querySelectorAll('.match-item.right').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (self.isAnswerSubmitted) return;
+                        if (selectedLeft === null) return;
+                        
+                        const rightIndex = parseInt(item.dataset.right);
+                        self.game.playSound('click');
+                        
+                        if (!self.selectedPairs[self.currentQuestionIndex]) {
+                            self.selectedPairs[self.currentQuestionIndex] = {};
+                        }
+                        self.selectedPairs[self.currentQuestionIndex][selectedLeft] = rightIndex;
+                        
+                        // 不重新渲染，只更新选中状态和绘制连线
+                        const leftItem = document.getElementById(`match-left-${selectedLeft}`);
+                        const rightItem = document.getElementById(`match-right-${rightIndex}`);
+                        if (leftItem) leftItem.classList.add('matched');
+                        if (rightItem) rightItem.classList.add('matched');
+                        
+                        // 绘制连线
+                        self.drawMatchingLines(question);
+                        
+                        selectedLeft = null;
+                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                    });
+                });
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmMatchingBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+                        
+                        // 检查是否全部正确（未答题视为错误）
+                        const isCorrect = Object.keys(pairs).length === question.pairs.length &&
+                            Object.keys(pairs).every(k => {
+                                const leftIndex = parseInt(k);
+                                const rightIndex = parseInt(pairs[k]);
+                                const selectedRightContent = question.pairs[rightIndex].right;
+                                const correctRightContent = question.pairs[leftIndex].right;
+                                return selectedRightContent === correctRightContent;
+                            });
+                        
+                        if (isCorrect) {
+                            self.game.playSound('correct');
+                        } else {
+                            self.game.playSound('incorrect');
+                        }
+                        
+                        // 检查是否是最后一题
+                        if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
+                            self.isAnswerSubmitted = true;
+                            self.submitQuiz();
+                        } else {
+                            self.isAnswerSubmitted = true;
+                            self.renderQuestion();
+                            
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                                    
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        self.game.playSound('click');
+                                        self.isAnswerSubmitted = false;
+                                        self.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
+                break;
+            }
+                
             case 'ordering': {
                 this.setupDragDrop(container);
 
@@ -809,10 +1058,17 @@ class App {
 
                         if (isCorrect) {
                             this.game.playSound('correct');
-                            this.isAnswerSubmitted = true;
-                            this.renderQuestion();
                         } else {
                             this.game.playSound('incorrect');
+                        }
+
+                        // 检查是否是最后一题
+                        if (this.currentQuestionIndex === this.currentSubLevel.quiz.length - 1) {
+                            // 如果是最后一题，直接提交整个测验
+                            this.isAnswerSubmitted = true;
+                            this.submitQuiz();
+                        } else {
+                            // 否则，显示解析和继续按钮
                             this.isAnswerSubmitted = true;
                             this.renderQuestion();
 
@@ -843,6 +1099,316 @@ class App {
         }
     }
     
+    initCanvasMatching(question) {
+        const self = this;
+        const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+        
+        // 获取Canvas元素
+        const canvas = document.getElementById("canvas");
+        const backCanvas = document.getElementById("backCanvas");
+        if (!canvas || !backCanvas) return;
+        
+        // 设置Canvas尺寸
+        const container = document.getElementById("matchingContainer");
+        if (!container) return;
+        
+        const containerRect = container.getBoundingClientRect();
+        canvas.width = backCanvas.width = containerRect.width;
+        canvas.height = backCanvas.height = containerRect.height;
+        
+        // 获取Canvas上下文
+        const ctx = canvas.getContext("2d");
+        const backCtx = backCanvas.getContext("2d");
+        
+        // 设置画笔样式
+        ctx.strokeStyle = '#2563eb';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        
+        backCtx.strokeStyle = '#2563eb';
+        backCtx.lineWidth = 3;
+        backCtx.lineCap = 'round';
+        
+        // 获取所有匹配项
+        const options = document.querySelectorAll('.match-item');
+        const tag = 'matching_' + Math.random().toString(36).slice(2);
+        
+        // 为每个选项计算锚点
+        options.forEach(item => {
+            const rect = item.getBoundingClientRect();
+            const containerRect = container.getBoundingClientRect();
+            const ownership = item.dataset.ownership;
+            
+            // 计算锚点坐标（相对于Canvas）
+            let anchorX, anchorY;
+            if (ownership === 'L') {
+                anchorX = rect.right - containerRect.left;
+            } else {
+                anchorX = rect.left - containerRect.left;
+            }
+            anchorY = rect.top + rect.height / 2 - containerRect.top;
+            
+            item.dataset.anchorX = anchorX;
+            item.dataset.anchorY = anchorY;
+            item.dataset.checked = '0';
+            item.dataset.tag = tag;
+        });
+        
+        // 初始化数据
+        let trigger = false;
+        let startPoint = { x: 0, y: 0 };
+        let endPoint = { x: 0, y: 0 };
+        let startElement = null;
+        let endElement = null;
+        let backLines = [];
+        
+        // 绑定mousedown事件
+        options.forEach(item => {
+            item.addEventListener('mousedown', function(event) {
+                if (self.isAnswerSubmitted) return;
+                
+                self.game.playSound('click');
+                this.classList.add('active');
+                startElement = this;
+                startPoint.x = +this.dataset.anchorX;
+                startPoint.y = +this.dataset.anchorY;
+                trigger = true;
+                
+                event.stopPropagation();
+                event.preventDefault();
+            });
+        });
+        
+        // 绑定mousemove事件
+        document.addEventListener('mousemove', function(event) {
+            if (!trigger) return;
+            
+            // 计算鼠标在Canvas中的位置
+            const canvasRect = canvas.getBoundingClientRect();
+            const currentX = event.clientX - canvasRect.left;
+            const currentY = event.clientY - canvasRect.top;
+            
+            // 清除Canvas并绘制当前连线
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.moveTo(startPoint.x, startPoint.y);
+            ctx.lineTo(currentX, currentY);
+            ctx.stroke();
+            
+            // 检查鼠标是否悬停在目标元素上
+            const overElement = document.elementFromPoint(event.clientX, event.clientY);
+            const ownership = startElement.dataset.ownership;
+            
+            if (overElement === endElement) return;
+            
+            // 检查是否是有效目标
+            const condition1 = overElement && overElement.dataset && overElement.dataset.tag === tag;
+            const condition2 = overElement && overElement.dataset && overElement.dataset.ownership !== ownership;
+            const condition3 = overElement && overElement.dataset && overElement.dataset.checked !== '1';
+            
+            if (condition1 && condition2 && condition3) {
+                if (endElement) {
+                    endElement.classList.remove('active');
+                }
+                endElement = overElement;
+                endElement.classList.add('active');
+                endElement.dataset.checked = '1';
+                startElement.dataset.checked = '1';
+            } else if (endElement) {
+                endElement.classList.remove('active');
+                endElement.dataset.checked = startElement.dataset.checked = '0';
+                endElement = null;
+            }
+            
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        
+        // 绑定mouseup事件
+        document.addEventListener('mouseup', function(event) {
+            if (!trigger) return;
+            
+            // 恢复开始元素状态
+            if (startElement && startElement.dataset.checked !== '1') {
+                startElement.classList.remove('active');
+            }
+            
+            // 完成连线
+            if (startElement && endElement && startElement.dataset.checked === '1' && endElement.dataset.checked === '1') {
+                const x1 = +startElement.dataset.anchorX;
+                const y1 = +startElement.dataset.anchorY;
+                const x2 = +endElement.dataset.anchorX;
+                const y2 = +endElement.dataset.anchorY;
+                const ownership = startElement.dataset.ownership;
+                
+                const startValue = startElement.dataset.value;
+                const endValue = endElement.dataset.value;
+                
+                // 检查是否已经连线，如果是则删除旧连线
+                const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+                const keys = Object.keys(pairs);
+                const values = Object.values(pairs);
+                
+                if (keys.includes(startValue) || values.includes(startValue)) {
+                    // 找到旧连线
+                    let key = '';
+                    let value = '';
+                    for (let i = 0; i < keys.length; i++) {
+                        const k = keys[i];
+                        const v = values[i];
+                        if ([k, v].includes(startValue)) {
+                            key = k;
+                            value = k === startValue ? v : k;
+                            break;
+                        }
+                    }
+                    
+                    // 恢复旧连线元素状态
+                    const sel = `[data-value="${value}"]`;
+                    const tarElement = document.querySelector(sel);
+                    if (tarElement) {
+                        tarElement.dataset.checked = '0';
+                        tarElement.classList.remove('active');
+                    }
+                    
+                    // 删除旧连线数据
+                    delete pairs[key];
+                    const index = backLines.findIndex(item => item.key === key);
+                    if (index >= 0) {
+                        backLines.splice(index, 1);
+                    }
+                }
+                
+                // 保存新连线
+                const k = ownership === 'L' ? startValue : endValue;
+                const v = ownership === 'L' ? endValue : startValue;
+                
+                if (!self.selectedPairs[self.currentQuestionIndex]) {
+                    self.selectedPairs[self.currentQuestionIndex] = {};
+                }
+                self.selectedPairs[self.currentQuestionIndex][k] = v;
+                
+                const colorIndex = parseInt(k);
+                backLines.push({
+                    key: k,
+                    point: { x1, y1, x2, y2 },
+                    color: colors[colorIndex % colors.length]
+                });
+                
+                // 绘制已完成的连线
+                drawLines();
+                self.game.playSound('correct');
+            }
+            
+            // 清理状态
+            trigger = false;
+            startElement = null;
+            endElement = null;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            event.stopPropagation();
+            event.preventDefault();
+        });
+        
+        // 绘制已完成的连线
+        function drawLines() {
+            backCtx.clearRect(0, 0, backCanvas.width, backCanvas.height);
+            backLines.forEach(({ point: { x1, y1, x2, y2 }, color }) => {
+                backCtx.beginPath();
+                backCtx.strokeStyle = color || '#2563eb';
+                backCtx.moveTo(x1, y1);
+                backCtx.lineTo(x2, y2);
+                backCtx.stroke();
+            });
+            backCtx.strokeStyle = '#2563eb'; // 恢复默认颜色
+        }
+        
+        // 确认按钮事件
+        const confirmBtn = document.getElementById('confirmMatchingBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', function() {
+                const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+                
+                // 检查是否全部匹配
+                // 检查是否全部正确（未答题视为错误）
+                const isCorrect = Object.keys(pairs).length === question.pairs.length &&
+                    Object.keys(pairs).every(k => {
+                        const leftIndex = parseInt(k);
+                        const rightIndex = parseInt(pairs[k]);
+                        const selectedRightContent = question.pairs[rightIndex].right;
+                        const correctRightContent = question.pairs[leftIndex].right;
+                        return selectedRightContent === correctRightContent;
+                    });
+                
+                if (isCorrect) {
+                    self.game.playSound('correct');
+                } else {
+                    self.game.playSound('incorrect');
+                }
+                
+                // 检查是否是最后一题
+                if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
+                    self.isAnswerSubmitted = true;
+                    self.submitQuiz();
+                } else {
+                    self.isAnswerSubmitted = true;
+                    self.renderQuestion();
+                    
+                    const addContinueBtn = () => {
+                        const btnContainer = document.getElementById('questionContainer');
+                        if (btnContainer && !document.getElementById('continueBtn')) {
+                            const btnHtml = `
+                                <div style="margin-top: 20px; text-align: center;">
+                                    <button class="btn btn-primary" id="continueBtn">继续</button>
+                                </div>
+                            `;
+                            btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                            
+                            document.getElementById('continueBtn').addEventListener('click', () => {
+                                self.game.playSound('click');
+                                self.isAnswerSubmitted = false;
+                                self.nextQuestionOrFinish();
+                            });
+                        }
+                    };
+                    setTimeout(addContinueBtn, 100);
+                }
+            });
+        }
+        
+        // 如果已有连线，重新绘制
+        const existingPairs = this.selectedPairs[this.currentQuestionIndex] || {};
+        if (Object.keys(existingPairs).length > 0) {
+            setTimeout(() => {
+                Object.keys(existingPairs).forEach(k => {
+                    const v = existingPairs[k];
+                    const leftElement = document.querySelector(`.match-item.left[data-value="${k}"]`);
+                    const rightElement = document.querySelector(`.match-item.right[data-value="${v}"]`);
+                    
+                    if (leftElement && rightElement) {
+                        leftElement.dataset.checked = '1';
+                        rightElement.dataset.checked = '1';
+                        leftElement.classList.add('active');
+                        rightElement.classList.add('active');
+                        
+                        const x1 = +leftElement.dataset.anchorX;
+                        const y1 = +leftElement.dataset.anchorY;
+                        const x2 = +rightElement.dataset.anchorX;
+                        const y2 = +rightElement.dataset.anchorY;
+                        const colorIndex = parseInt(k);
+                        
+                        backLines.push({
+                            key: k,
+                            point: { x1, y1, x2, y2 },
+                            color: colors[colorIndex % colors.length]
+                        });
+                    }
+                });
+                drawLines();
+            }, 50);
+        }
+    }
+    
     drawConnectionLines() {
         const svg = document.querySelector('.connection-lines');
         if (!svg) return;
@@ -856,14 +1422,16 @@ class App {
             const rightItem = document.querySelector(`.match-item.right[data-right="${rightIndex}"]`);
             
             if (leftItem && rightItem) {
+                const container = svg.parentElement;
+                const containerRect = container.getBoundingClientRect();
                 const leftRect = leftItem.getBoundingClientRect();
                 const rightRect = rightItem.getBoundingClientRect();
-                const svgRect = svg.getBoundingClientRect();
                 
-                const x1 = leftRect.right - svgRect.left;
-                const y1 = leftRect.top + leftRect.height / 2 - svgRect.top;
-                const x2 = rightRect.left - svgRect.left;
-                const y2 = rightRect.top + rightRect.height / 2 - svgRect.top;
+                // 计算相对于容器的坐标
+                const x1 = leftRect.right - containerRect.left;
+                const y1 = leftRect.top + leftRect.height / 2 - containerRect.top;
+                const x2 = rightRect.left - containerRect.left;
+                const y2 = rightRect.top + rightRect.height / 2 - containerRect.top;
                 
                 // 计算贝塞尔曲线控制点
                 const midX = (x1 + x2) / 2;
@@ -962,6 +1530,7 @@ class App {
     nextQuestionOrFinish() {
         if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
             this.currentQuestionIndex++;
+            this.isAnswerSubmitted = false;
             this.renderQuestion();
         } else {
             this.submitQuiz();
@@ -971,6 +1540,7 @@ class App {
     prevQuestion() {
         if (this.currentQuestionIndex > 0) {
             this.currentQuestionIndex--;
+            this.isAnswerSubmitted = false;
             this.renderQuestion();
         }
     }
@@ -978,112 +1548,92 @@ class App {
     nextQuestion() {
         if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
             this.currentQuestionIndex++;
+            this.isAnswerSubmitted = false;
             this.renderQuestion();
+        } else {
+            // 已经是最后一题，直接提交
+            this.submitQuiz();
         }
     }
 
     submitQuiz() {
-        if (!this.isAnswerSubmitted) {
-            let correctCount = 0;
+        let correctCount = 0;
+        
+        this.currentSubLevel.quiz.forEach((q, index) => {
+            let isCorrect = false;
             
-            this.currentSubLevel.quiz.forEach((q, index) => {
-                let isCorrect = false;
-                
-                switch(q.type) {
-                    case 'single':
-                    case 'judge':
-                        isCorrect = this.userAnswers[index] === q.answer;
-                        break;
-                    case 'multiple':
-                        const selected = this.selectedOptions[index] || [];
-                        const answer = q.answer || [];
-                        isCorrect = selected.length === answer.length && 
-                            selected.every(s => answer.includes(s));
-                        break;
-                    case 'matching':
-                        const pairs = this.selectedPairs[index] || {};
-                        isCorrect = Object.keys(pairs).length === q.pairs.length &&
-                            Object.keys(pairs).every(k => {
-                                // 检查配对是否正确：左侧 k 对应的内容是否匹配到右侧对应的内容
-                                const leftIndex = parseInt(k);
-                                const rightIndex = parseInt(pairs[k]);
-                                
-                                // 获取左侧的内容
-                                const leftContent = q.pairs[leftIndex].left;
-                                // 获取用户选择的右侧内容
-                                const selectedRightContent = q.pairs[rightIndex].right;
-                                // 获取这个左侧内容应该匹配的正确右侧内容
-                                const correctRightContent = q.pairs[leftIndex].right;
-                                
-                                // 检查用户选择的右侧内容是否等于正确内容
-                                return selectedRightContent === correctRightContent;
-                            });
-                        break;
-                    case 'ordering':
-                        const order = this.orderedItems[index] || [];
-                        isCorrect = order.every((val, i) => val === q.answer[i]);
-                        break;
-                }
-                
-                if (isCorrect) {
-                    correctCount++;
-                }
-                
-                this.game.recordAnswer(isCorrect, q);
-            });
-            
-            this.isAnswerSubmitted = true;
-            this.renderQuestion();
-
-            // 先更新用户数据
-            const stars = this.game.calculateStars(correctCount, this.currentSubLevel.quiz.length);
-            const points = this.game.calculateQuizPoints(correctCount, this.currentSubLevel.quiz.length, stars);
-            
-            const result = this.game.completeSubLevel(this.currentLevel.id, this.currentSubLevel.id, stars);
-            
-            const pointsEl = document.querySelector('.user-points');
-            if (pointsEl) {
-                pointsEl.classList.add('points-updated');
-                setTimeout(() => pointsEl.classList.remove('points-updated'), 500);
+            switch(q.type) {
+                case 'single':
+                case 'judge':
+                    isCorrect = this.userAnswers[index] === q.answer;
+                    break;
+                case 'multiple':
+                    const selected = this.selectedOptions[index] || [];
+                    const answer = q.answer || [];
+                    isCorrect = selected.length === answer.length && 
+                        selected.every(s => answer.includes(s));
+                    break;
+                case 'select-matching':
+                case 'matching':
+                    const pairs = this.selectedPairs[index] || {};
+                    const pairList = q.options || q.pairs || [];
+                    isCorrect = Object.keys(pairs).length === pairList.length &&
+                        Object.keys(pairs).every(k => {
+                            const leftIndex = parseInt(k);
+                            const rightIndex = parseInt(pairs[k]);
+                            const selectedRightContent = pairList[rightIndex] && pairList[rightIndex].right;
+                            const correctRightContent = pairList[leftIndex] && pairList[leftIndex].right;
+                            return selectedRightContent && correctRightContent && selectedRightContent === correctRightContent;
+                        });
+                    break;
+                case 'ordering':
+                    const order = this.orderedItems[index] || [];
+                    isCorrect = order.every((val, i) => val === q.answer[i]);
+                    break;
             }
             
-            this.game.addPoints(points);
+            if (isCorrect) {
+                correctCount++;
+            }
             
-            this.updateHeader();
-            this.updateProgress();
-            this.renderSidebar();
+            this.game.recordAnswer(isCorrect, q);
+        });
+        
+        this.isAnswerSubmitted = true;
+        this.renderQuestion();
 
-            // 保存结果数据，供按钮点击时使用
-            this._pendingResult = {
-                correct: correctCount,
-                total: this.currentSubLevel.quiz.length,
-                stars,
-                points
-            };
-
-            // 添加查看结果按钮
-            const addButton = () => {
-                const container = document.getElementById('questionContainer');
-                if (container && !document.getElementById('viewResultBtn')) {
-                    const buttonHtml = `
-                        <div style="margin-top: 20px; text-align: center;">
-                            <button class="btn btn-primary" id="viewResultBtn">查看结果</button>
-                        </div>
-                    `;
-                    container.insertAdjacentHTML('beforeend', buttonHtml);
-                    
-                    document.getElementById('viewResultBtn').addEventListener('click', () => {
-                        this.game.playSound('click');
-                        const result = this._pendingResult;
-                        this._pendingResult = null;
-                        this.showResult(result.correct, result.total, result.stars, result.points);
-                    });
-                }
-            };
-
-            // 延迟一下添加按钮，保证DOM已渲染
-            setTimeout(addButton, 100);
+        // 先更新用户数据
+        const stars = this.game.calculateStars(correctCount, this.currentSubLevel.quiz.length);
+        const points = this.game.calculateQuizPoints(correctCount, this.currentSubLevel.quiz.length, stars);
+        
+        const result = this.game.completeSubLevel(this.currentLevel.id, this.currentSubLevel.id, stars);
+        
+        const pointsEl = document.querySelector('.user-points');
+        if (pointsEl) {
+            pointsEl.classList.add('points-updated');
+            setTimeout(() => pointsEl.classList.remove('points-updated'), 500);
         }
+        
+        this.game.addPoints(points);
+        
+        this.updateHeader();
+        this.updateProgress();
+        this.renderSidebar();
+
+        // 保存结果数据，供按钮点击时使用
+        this._pendingResult = {
+            correct: correctCount,
+            total: this.currentSubLevel.quiz.length,
+            stars,
+            points
+        };
+
+        // 直接显示结果，不需要再等待用户点击按钮
+        setTimeout(() => {
+            const result = this._pendingResult;
+            this._pendingResult = null;
+            this.showResult(result.correct, result.total, result.stars, result.points);
+        }, 500);
     }
 
     showResult(correct, total, stars, points) {

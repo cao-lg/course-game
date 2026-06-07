@@ -1331,12 +1331,16 @@ body {
 /* 匹配题样式 */
 .matching-container {
     display: flex;
-    gap: 30px;
+    gap: 20px;
     align-items: flex-start;
+    position: relative;
+    min-height: 300px;
+    padding: 10px;
 }
 
 .match-column {
     flex: 1;
+    z-index: 2;
 }
 
 .match-column h4 {
@@ -1348,7 +1352,7 @@ body {
 
 .match-item {
     padding: 14px 16px;
-    background: #f8fafc;
+    background-color: #f8fafc;
     border: 2px solid #e2e8f0;
     border-radius: 10px;
     margin-bottom: 10px;
@@ -1357,34 +1361,41 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
+    user-select: none;
 }
 
 .match-item:hover {
     border-color: #2563eb;
-    background: #eff6ff;
-    transform: translateX(5px);
+    background-color: #eff6ff;
+    transform: translateX(3px);
 }
 
 .match-item.selected {
     border-color: #2563eb;
-    background: #dbeafe;
+    background-color: #dbeafe;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.match-item.active {
+    border-color: #2563eb;
+    background-color: #dbeafe;
     box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     transform: scale(1.02);
 }
 
 .match-item.matched {
     opacity: 0.9;
-    background: #ecfdf5;
+    background-color: #ecfdf5;
 }
 
 .match-item.correct {
-    background: #d1fae5;
+    background-color: #d1fae5;
     border-color: #10b981;
     box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
 }
 
 .match-item.incorrect {
-    background: #fee2e2;
+    background-color: #fee2e2;
     border-color: #ef4444;
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
 }
@@ -1404,6 +1415,17 @@ body {
 
 .match-text {
     flex: 1;
+}
+
+/* Canvas连线样式 */
+.matching-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
 }
 
 /* 排序题样式 */
@@ -1485,4 +1507,97 @@ body {
     font-size: 0.85rem;
     font-weight: 600;
     margin-top: 10px;
+}/* 下拉框配对样式 */
+.select-matching-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 15px 0;
+}
+
+.select-match-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background-color: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 10px;
+    transition: all 0.2s;
+}
+
+.select-match-row:hover {
+    border-color: #cbd5e1;
+    background-color: #f1f5f9;
+}
+
+.select-match-row.select-match-correct {
+    background-color: #d1fae5;
+    border-color: #10b981;
+}
+
+.select-match-row.select-match-incorrect {
+    background-color: #fee2e2;
+    border-color: #ef4444;
+}
+
+.select-match-label {
+    display: inline-flex;
+    min-width: 32px;
+    height: 32px;
+    padding: 0 10px;
+    background-color: #2563eb;
+    color: white;
+    text-align: center;
+    line-height: 32px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.select-match-left {
+    flex: 1;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.select-match-arrow {
+    color: #94a3b8;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.select-match-select {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 2px solid #cbd5e1;
+    border-radius: 8px;
+    background-color: white;
+    font-size: 0.95rem;
+    color: #1e293b;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.select-match-select:focus {
+    outline: none;
+    border-color: #2563eb;
+}
+
+.select-match-select:disabled {
+    background-color: #f1f5f9;
+    cursor: not-allowed;
+}
+
+.select-match-feedback {
+    color: #10b981;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.select-match-row.select-match-incorrect .select-match-feedback {
+    color: #ef4444;
 }
