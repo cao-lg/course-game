@@ -1329,13 +1329,9 @@ body {
 }
 
 /* 匹配题样式 */
-.matching-wrapper {
-    padding: 10px 0;
-}
-
 .matching-container {
     display: flex;
-    gap: 20px;
+    gap: 30px;
     align-items: flex-start;
 }
 
@@ -1363,31 +1359,22 @@ body {
     gap: 12px;
 }
 
-.match-item.left {
-    justify-content: space-between;
-}
-
-.match-item.right {
-    justify-content: space-between;
-}
-
 .match-item:hover {
-    border-color: var(--match-color, #2563eb);
+    border-color: #2563eb;
     background: #eff6ff;
-    transform: translateX(2px);
+    transform: translateX(5px);
 }
 
 .match-item.selected {
-    border-color: var(--match-color, #2563eb);
+    border-color: #2563eb;
     background: #dbeafe;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     transform: scale(1.02);
 }
 
 .match-item.matched {
-    opacity: 0.85;
+    opacity: 0.9;
     background: #ecfdf5;
-    border-color: var(--match-color, #10b981);
 }
 
 .match-item.correct {
@@ -1404,12 +1391,11 @@ body {
 
 .match-label {
     display: inline-flex;
-    width: 30px;
-    height: 30px;
-    background: var(--match-color, #2563eb);
+    width: 32px;
+    height: 32px;
     color: white;
     text-align: center;
-    line-height: 30px;
+    line-height: 32px;
     border-radius: 50%;
     font-weight: 600;
     font-size: 0.9rem;
@@ -1418,24 +1404,6 @@ body {
 
 .match-text {
     flex: 1;
-}
-
-.match-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.match-divider {
-    align-self: stretch;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.5rem;
-    color: #94a3b8;
-    min-height: 300px;
 }
 
 /* 排序题样式 */

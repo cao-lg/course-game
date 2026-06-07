@@ -472,6 +472,15 @@ class App {
         const pairs = this.selectedPairs[this.currentQuestionIndex];
         const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
         
+        // 保持右侧顺序稳定，避免每次渲染打乱
+        if (!this.shuffledRightIndices) {
+            this.shuffledRightIndices = {};
+        }
+        if (!this.shuffledRightIndices[this.currentQuestionIndex]) {
+            this.shuffledRightIndices[this.currentQuestionIndex] = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5);
+        }
+        const shuffledRight = this.shuffledRightIndices[this.currentQuestionIndex];
+        
         const leftItems = question.pairs.map((p, i) => {
             const isMatched = pairs[i] !== undefined;
             let isCorrect = false;
@@ -486,15 +495,13 @@ class App {
             }
             
             return `
-                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-left="${i}" style="--match-color: ${colors[i % colors.length]}">
-                    <span class="match-label">${String.fromCharCode(65 + i)}</span>
+                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-left="${i}">
+                    <span class="match-label" style="background-color: ${colors[i % colors.length]}">${String.fromCharCode(65 + i)}</span>
                     <span class="match-text">${p.left}</span>
-                    <span class="match-dot" style="background-color: ${colors[i % colors.length]}"></span>
                 </div>
             `;
         }).join('');
 
-        const shuffledRight = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5);
         const rightItems = shuffledRight.map(i => {
             const matchedLeft = Object.keys(pairs).find(k => pairs[k] === i);
             const isMatched = matchedLeft !== undefined;
@@ -510,57 +517,38 @@ class App {
                 isWrong = !isCorrect;
             }
             
-            const colorIndex = isMatched ? parseInt(matchedLeft) : (this.isAnswerSubmitted ? i : shuffledRight.indexOf(i));
+            const colorIndex = isMatched ? parseInt(matchedLeft) : shuffledRight.indexOf(i);
             return `
-                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-right="${i}" style="--match-color: ${colors[colorIndex % colors.length]}">
-                    <span class="match-dot" style="background-color: ${colors[colorIndex % colors.length]}"></span>
+                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" data-right="${i}">
+                    <span class="match-label" style="background-color: ${colors[colorIndex % colors.length]}">${i + 1}</span>
                     <span class="match-text">${question.pairs[i].right}</span>
-                    <span class="match-label">${i + 1}</span>
                 </div>
             `;
         }).join('');
 
-        let connectionLines = '';
-        if (Object.keys(pairs).length > 0) {
-            connectionLines = '<svg class="connection-lines" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none;">';
-            Object.keys(pairs).forEach(leftIndex => {
-                const rightIndex = pairs[leftIndex];
-                let lineColor = colors[parseInt(leftIndex) % colors.length];
-                
-                if (this.isAnswerSubmitted) {
-                    const selectedRightContent = question.pairs[rightIndex].right;
-                    const correctRightContent = question.pairs[parseInt(leftIndex)].right;
-                    lineColor = selectedRightContent === correctRightContent ? '#10b981' : '#ef4444';
-                }
-                
-                connectionLines += `<path data-left="${leftIndex}" data-right="${rightIndex}" stroke="${lineColor}" stroke-width="3" fill="none" stroke-linecap="round" style="opacity:0.7"/>`;
-            });
-            connectionLines += '</svg>';
+        let confirmButtonHtml = '';
+        if (!this.isAnswerSubmitted) {
+            confirmButtonHtml = `
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
+                </div>
+            `;
         }
-
-        const confirmButtonHtml = (!this.isAnswerSubmitted && Object.keys(pairs).length > 0) ? `
-            <div style="margin-top: 20px; text-align: center;">
-                <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
-            </div>
-        ` : '';
 
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
             </div>
-            <div class="matching-wrapper" style="position:relative;">
-                ${connectionLines}
-                <div class="matching-container">
-                    <div class="match-column">
-                        <h4>左侧选项</h4>
-                        ${leftItems}
-                    </div>
-                    <div class="match-divider" style="width:100px; flex:none;"></div>
-                    <div class="match-column">
-                        <h4>右侧选项</h4>
-                        ${rightItems}
-                    </div>
+            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">先点击左侧选项，再点击右侧选项进行配对</p>
+            <div class="matching-container">
+                <div class="match-column">
+                    <h4>左侧选项</h4>
+                    ${leftItems}
+                </div>
+                <div class="match-column">
+                    <h4>右侧选项</h4>
+                    ${rightItems}
                 </div>
             </div>
             ${confirmButtonHtml}
@@ -722,6 +710,8 @@ class App {
                 
                 container.querySelectorAll('.match-item.left').forEach(item => {
                     item.addEventListener('click', () => {
+                        if (this.isAnswerSubmitted) return;
+                        
                         const leftIndex = parseInt(item.dataset.left);
                         this.game.playSound('click');
                         
@@ -733,6 +723,7 @@ class App {
                 
                 container.querySelectorAll('.match-item.right').forEach(item => {
                     item.addEventListener('click', () => {
+                        if (this.isAnswerSubmitted) return;
                         if (selectedLeft === null) return;
                         
                         const rightIndex = parseInt(item.dataset.right);
@@ -745,18 +736,8 @@ class App {
                         
                         selectedLeft = null;
                         this.renderQuestion();
-                        
-                        // 延迟绘制连接线
-                        setTimeout(() => {
-                            this.drawConnectionLines();
-                        }, 50);
                     });
                 });
-                
-                // 首次渲染后绘制连接线
-                setTimeout(() => {
-                    this.drawConnectionLines();
-                }, 50);
 
                 // 确认按钮事件
                 const matchingConfirmBtn = document.getElementById('confirmMatchingBtn');
