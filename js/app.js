@@ -632,7 +632,7 @@ class App {
 
         switch(question.type) {
             case 'single':
-            case 'judge':
+            case 'judge': {
                 container.querySelectorAll('.option-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const index = parseInt(item.dataset.index);
@@ -650,8 +650,9 @@ class App {
                     });
                 });
                 break;
+            }
                 
-            case 'multiple':
+            case 'multiple': {
                 container.querySelectorAll('.option-item').forEach(item => {
                     item.addEventListener('click', () => {
                         const index = parseInt(item.dataset.index);
@@ -672,9 +673,9 @@ class App {
                 });
 
                 // 确认按钮事件
-                const confirmBtn = document.getElementById('confirmMultipleBtn');
-                if (confirmBtn) {
-                    confirmBtn.addEventListener('click', () => {
+                const multipleConfirmBtn = document.getElementById('confirmMultipleBtn');
+                if (multipleConfirmBtn) {
+                    multipleConfirmBtn.addEventListener('click', () => {
                         const selected = this.selectedOptions[this.currentQuestionIndex] || [];
                         const answer = question.answer || [];
                         
@@ -714,8 +715,9 @@ class App {
                     });
                 }
                 break;
+            }
                 
-            case 'matching':
+            case 'matching': {
                 let selectedLeft = null;
                 
                 container.querySelectorAll('.match-item.left').forEach(item => {
@@ -757,9 +759,9 @@ class App {
                 }, 50);
 
                 // 确认按钮事件
-                const confirmBtn = document.getElementById('confirmMatchingBtn');
-                if (confirmBtn) {
-                    confirmBtn.addEventListener('click', () => {
+                const matchingConfirmBtn = document.getElementById('confirmMatchingBtn');
+                if (matchingConfirmBtn) {
+                    matchingConfirmBtn.addEventListener('click', () => {
                         const pairs = this.selectedPairs[this.currentQuestionIndex] || {};
                         
                         // 检查是否全部匹配
@@ -810,14 +812,15 @@ class App {
                     });
                 }
                 break;
+            }
                 
-            case 'ordering':
+            case 'ordering': {
                 this.setupDragDrop(container);
 
                 // 确认按钮事件
-                const confirmBtn = document.getElementById('confirmOrderingBtn');
-                if (confirmBtn) {
-                    confirmBtn.addEventListener('click', () => {
+                const orderingConfirmBtn = document.getElementById('confirmOrderingBtn');
+                if (orderingConfirmBtn) {
+                    orderingConfirmBtn.addEventListener('click', () => {
                         const order = this.orderedItems[this.currentQuestionIndex] || [];
                         
                         // 检查是否全部正确
@@ -855,6 +858,7 @@ class App {
                     });
                 }
                 break;
+            }
         }
     }
     
