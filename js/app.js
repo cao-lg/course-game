@@ -327,6 +327,7 @@ class App {
         this.orderedItems = [];
         this.selectedOptions = {};
         this.isAnswerSubmitted = false;
+        if (window.gameEffects) window.gameEffects.resetCombo();
         this.showPage('quiz');
         this.renderQuestion();
     }
@@ -367,6 +368,12 @@ class App {
 
         if (!this.isAnswerSubmitted) {
             this.bindQuestionEvents(question);
+        }
+
+        // 触发游戏化动画
+        if (window.gameEffects) {
+            window.gameEffects.slideInQuestion();
+            setTimeout(() => window.gameEffects.flyInOptions(), 100);
         }
 
         // 如果是匹配题，初始化Canvas并绘制连线
@@ -723,11 +730,17 @@ class App {
         const order = this.orderedItems[this.currentQuestionIndex];
         
         const itemsHtml = order.map((originalIndex, currentIndex) => {
+            const isFirst = currentIndex === 0;
+            const isLast = currentIndex === order.length - 1;
             return `
                 <div class="order-item" data-index="${originalIndex}" data-pos="${currentIndex}" draggable="true">
                     <span class="order-number">${currentIndex + 1}</span>
                     <span class="order-text">${question.options[originalIndex]}</span>
-                    <span class="order-handle"><i class="fas fa-grip-vertical"></i></span>
+                    <div class="order-controls">
+                        <button class="order-up" ${isFirst ? 'disabled' : ''} title="上移"><i class="fas fa-arrow-up"></i></button>
+                        <button class="order-down" ${isLast ? 'disabled' : ''} title="下移"><i class="fas fa-arrow-down"></i></button>
+                        <span class="order-handle"><i class="fas fa-grip-vertical"></i></span>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -784,8 +797,10 @@ class App {
                         
                         if (index === question.answer) {
                             this.game.playSound('correct');
+                            if (window.gameEffects) window.gameEffects.showCorrect(item);
                         } else {
                             this.game.playSound('incorrect');
+                            if (window.gameEffects) window.gameEffects.showIncorrect(item);
                             this.showInstantExplanation(question, index);
                             return;
                         }
@@ -812,6 +827,7 @@ class App {
                         }
                         
                         this.game.playSound('click');
+                        if (window.gameEffects) window.gameEffects.burstFromElement(item, 'sparkle', 6);
                         this.renderQuestion();
                     });
                 });
@@ -885,6 +901,7 @@ class App {
                             self.selectedPairs[self.currentQuestionIndex][leftIndex] = parseInt(rightValue);
                         }
                         self.game.playSound('click');
+                        if (window.gameEffects) window.gameEffects.burstFromElement(select, 'sparkle', 8);
                     });
                 });
 
@@ -1445,41 +1462,64 @@ class App {
 
     setupDragDrop(container) {
         let draggedItem = null;
-        
+        const self = this;
+
+        // HTML5 拖拽
         container.querySelectorAll('.order-item').forEach(item => {
             item.addEventListener('dragstart', (e) => {
                 draggedItem = item;
                 item.classList.add('dragging');
+                if (window.gameEffects) window.gameEffects.burstFromElement(item, 'sparkle', 6);
             });
-            
+
             item.addEventListener('dragend', () => {
                 item.classList.remove('dragging');
                 draggedItem = null;
             });
-            
+
             item.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 item.classList.add('drag-over');
             });
-            
+
             item.addEventListener('dragleave', () => {
                 item.classList.remove('drag-over');
             });
-            
+
             item.addEventListener('drop', (e) => {
                 e.preventDefault();
                 item.classList.remove('drag-over');
-                
+
                 if (draggedItem && draggedItem !== item) {
                     const draggedIndex = parseInt(draggedItem.dataset.pos);
                     const targetIndex = parseInt(item.dataset.pos);
                     const order = this.orderedItems[this.currentQuestionIndex];
-                    
+
                     [order[draggedIndex], order[targetIndex]] = [order[targetIndex], order[draggedIndex]];
-                    
+
                     this.game.playSound('click');
                     this.renderQuestion();
                 }
+            });
+        });
+
+        // 上下移动按钮（移动端友好）
+        container.querySelectorAll('.order-up, .order-down').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const item = btn.closest('.order-item');
+                const pos = parseInt(item.dataset.pos);
+                const order = self.orderedItems[self.currentQuestionIndex];
+                const isUp = btn.classList.contains('order-up');
+                const newPos = isUp ? pos - 1 : pos + 1;
+
+                if (newPos < 0 || newPos >= order.length) return;
+
+                [order[pos], order[newPos]] = [order[newPos], order[pos]];
+                self.game.playSound('click');
+                if (window.gameEffects) window.gameEffects.burstFromElement(btn, 'sparkle', 5);
+                self.renderQuestion();
             });
         });
     }
@@ -1531,6 +1571,11 @@ class App {
         if (this.currentQuestionIndex < this.currentSubLevel.quiz.length - 1) {
             this.currentQuestionIndex++;
             this.isAnswerSubmitted = false;
+            if (window.gameEffects) {
+                window.gameEffects.removeTimer();
+                window.gameEffects.slideInQuestion();
+                setTimeout(() => window.gameEffects.flyInOptions(), 100);
+            }
             this.renderQuestion();
         } else {
             this.submitQuiz();
@@ -1628,12 +1673,28 @@ class App {
             points
         };
 
+        // 撒花庆祝
+        if (window.gameEffects) {
+            window.gameEffects.celebrate();
+        }
+
+        // 显示成就徽章
+        if (window.gameEffects && correctCount === this.currentSubLevel.quiz.length) {
+            setTimeout(() => {
+                window.gameEffects.showAchievement('🏆', '完美通关！', '全部答对，获得满分！');
+            }, 800);
+        } else if (window.gameEffects && stars >= 2) {
+            setTimeout(() => {
+                window.gameEffects.showAchievement('⭐', '表现出色！', `获得 ${stars} 星评价！`);
+            }, 800);
+        }
+
         // 直接显示结果，不需要再等待用户点击按钮
         setTimeout(() => {
             const result = this._pendingResult;
             this._pendingResult = null;
             this.showResult(result.correct, result.total, result.stars, result.points);
-        }, 500);
+        }, 1500);
     }
 
     showResult(correct, total, stars, points) {
