@@ -817,10 +817,34 @@ class App {
     }
 
     renderCaseQuestion(question) {
-        const caseContent = question.case || '';
+        const caseContent = question.case || question.answer || '';
         const reference = question.answer || '';
-        const mastered = this.userAnswers[this.currentQuestionIndex] === 'mastered';
-        const showReference = this.isAnswerSubmitted || mastered;
+        const mastered = this.userAnswers[this.currentQuestionIndex] !== undefined &&
+                         this.userAnswers[this.currentQuestionIndex] !== null;
+        const hasOptions = Array.isArray(question.options) && question.options.length > 0;
+        const correctIdx = typeof question.correctOption === 'number' ? question.correctOption : -1;
+        const showFeedback = this.isAnswerSubmitted || mastered;
+
+        // 构造选项HTML
+        const optionsHtml = hasOptions ? question.options.map((opt, idx) => {
+            const userIdx = this.userAnswers[this.currentQuestionIndex];
+            let optClass = 'option-item';
+            if (showFeedback) {
+                if (idx === correctIdx) optClass += ' correct';
+                else if (userIdx === idx) optClass += ' incorrect';
+            } else if (userIdx === idx) {
+                optClass += ' selected';
+            }
+            return `
+                <div class="${optClass}" data-index="${idx}">
+                    <span class="option-letter">${String.fromCharCode(65 + idx)}</span>
+                    <span class="option-text">${opt}</span>
+                    ${showFeedback && idx === correctIdx ? '<span class="option-mark correct-mark">✓</span>' : ''}
+                    ${showFeedback && userIdx === idx && idx !== correctIdx ? '<span class="option-mark incorrect-mark">✗</span>' : ''}
+                </div>
+            `;
+        }).join('') : '';
+
         return `
             <div class="question-text">
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
@@ -830,27 +854,36 @@ class App {
                 <h4 style="margin: 0 0 10px; color: #1e40af; display: flex; align-items: center; gap: 6px;">
                     <i class="fas fa-briefcase"></i> 案例背景
                 </h4>
-                <div style="white-space: pre-wrap;">${caseContent || reference}</div>
+                <div style="white-space: pre-wrap;">${caseContent}</div>
             </div>
-            ${showReference ? `
+            ${hasOptions ? `
+                <div class="case-options-container" style="margin-top: 16px;">
+                    <p style="color: #1e40af; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-question-circle"></i> 请选择你认为最合适的分析方向：
+                    </p>
+                    <div class="options-list">${optionsHtml}</div>
+                </div>
+            ` : ''}
+            ${showFeedback ? `
                 <div class="explanation" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981; padding: 18px 20px; border-radius: 8px; margin: 18px 0; line-height: 1.8;">
                     <h4 style="margin: 0 0 10px; color: #047857; display: flex; align-items: center; gap: 6px;">
                         <i class="fas fa-lightbulb"></i> 参考分析思路
                     </h4>
-                    <p style="margin: 0; color: #1e293b;">${reference}</p>
+                    <p style="margin: 0; color: #1e293b; white-space: pre-wrap;">${reference}</p>
                     ${question.explanation ? `<p style="margin: 10px 0 0; color: #475569; font-size: 0.9rem;"><strong>解析：</strong>${question.explanation}</p>` : ''}
                 </div>
-                <div style="text-align: center; margin-top: 12px; color: #10b981; font-weight: 600;">
-                    <i class="fas fa-check-circle"></i> 已掌握
+                <div style="text-align: center; margin-top: 12px; color: ${this.userAnswers[this.currentQuestionIndex] === correctIdx ? '#10b981' : '#ef4444'}; font-weight: 600;">
+                    <i class="fas ${this.userAnswers[this.currentQuestionIndex] === correctIdx ? 'fa-check-circle' : 'fa-times-circle'}"></i>
+                    ${this.userAnswers[this.currentQuestionIndex] === correctIdx ? '回答正确！' : '正确答案是 ' + String.fromCharCode(65 + correctIdx) + '，你的选择是 ' + String.fromCharCode(65 + (this.userAnswers[this.currentQuestionIndex] || 0))}
                 </div>
             ` : `
                 <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" id="caseMasteredBtn">
-                        <i class="fas fa-graduation-cap"></i> 我已掌握，继续
+                    <button class="btn btn-primary" id="caseMasteredBtn" disabled style="opacity:0.5;cursor:not-allowed;">
+                        <i class="fas fa-paper-plane"></i> 请先选择答案
                     </button>
                 </div>
                 <p style="text-align: center; margin-top: 12px; color: #64748b; font-size: 0.85rem;">
-                    💡 认真思考后点击按钮即可查看参考分析思路
+                    💡 选择你认为最合适的分析方向后，提交查看参考思路
                 </p>
             `}
         `;
@@ -1087,15 +1120,58 @@ class App {
             }
 
             case 'case': {
-                // 案例分析题：阅读+参考思路+"我已掌握"按钮
+                // 案例分析题：单选交互
+                const hasOptions = Array.isArray(question.options) && question.options.length > 0;
+
+                if (hasOptions && !this.isAnswerSubmitted) {
+                    // 选项点击事件
+                    container.querySelectorAll('.case-options-container .option-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            if (this.isAnswerSubmitted) return;
+                            const idx = parseInt(item.dataset.index);
+                            this.userAnswers[this.currentQuestionIndex] = idx;
+                            this.game.playSound('click');
+                            // 启用提交按钮
+                            const btn = document.getElementById('caseMasteredBtn');
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.style.opacity = '1';
+                                btn.style.cursor = 'pointer';
+                                btn.innerHTML = '<i class="fas fa-paper-plane"></i> 提交答案';
+                            }
+                            // 标记选中
+                            container.querySelectorAll('.case-options-container .option-item').forEach(i => {
+                                i.classList.remove('selected');
+                            });
+                            item.classList.add('selected');
+                        });
+                    });
+                }
+
+                // 提交按钮事件
                 const masteredBtn = document.getElementById('caseMasteredBtn');
-                if (masteredBtn) {
+                if (masteredBtn && !this.isAnswerSubmitted) {
                     masteredBtn.addEventListener('click', () => {
-                        this.userAnswers[this.currentQuestionIndex] = 'mastered';
-                        this.game.playSound('correct');
-                        this.game.recordAnswer(true);
+                        // 必须先选答案
+                        if (!hasOptions) {
+                            this.userAnswers[this.currentQuestionIndex] = 'mastered';
+                        } else if (this.userAnswers[this.currentQuestionIndex] === undefined ||
+                                   this.userAnswers[this.currentQuestionIndex] === null) {
+                            // 未选答案，提示
+                            this.game.playSound('incorrect');
+                            if (window.gameEffects) window.gameEffects.shakeElement(masteredBtn);
+                            return;
+                        }
+
+                        // 判断对错
+                        const userAns = this.userAnswers[this.currentQuestionIndex];
+                        const correctIdx = typeof question.correctOption === 'number' ? question.correctOption : -1;
+                        const isCorrect = hasOptions ? (userAns === correctIdx) : true;
+                        this.game.playSound(isCorrect ? 'correct' : 'incorrect');
+                        this.game.recordAnswer(isCorrect, question);
                         this.isAnswerSubmitted = true;
                         this.renderQuestion();
+
                         // 添加继续按钮
                         setTimeout(() => {
                             const btnContainer = document.getElementById('questionContainer');
@@ -1640,8 +1716,12 @@ class App {
                     isCorrect = order.every((val, i) => val === q.answer[i]);
                     break;
                 case 'case':
-                    // 案例分析题：用户点击"已掌握"即算对
-                    isCorrect = this.userAnswers[index] === 'mastered';
+                    // 案例分析题：有options则对比correctOption，否则按mastered算对
+                    if (Array.isArray(q.options) && q.options.length > 0) {
+                        isCorrect = this.userAnswers[index] === q.correctOption;
+                    } else {
+                        isCorrect = this.userAnswers[index] === 'mastered';
+                    }
                     break;
             }
             
