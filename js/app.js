@@ -620,9 +620,16 @@ class App {
 
         let confirmButtonHtml = '';
         if (!this.isAnswerSubmitted) {
+            const answered = Object.keys(this.selectedPairs[this.currentQuestionIndex] || {}).length;
+            const total = (question.options || question.pairs || []).length;
+            const remaining = total - answered;
+            const tip = remaining > 0
+                ? `<p style="text-align:center;margin-top:10px;color:#f59e0b;font-size:0.85rem;">⚠️ 还有 ${remaining} 项未匹配，提交后未答项将判错</p>`
+                : `<p style="text-align:center;margin-top:10px;color:#10b981;font-size:0.85rem;">✓ 全部已匹配，请提交答案</p>`;
             confirmButtonHtml = `
                 <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
+                    ${tip}
+                    <button class="btn btn-primary" id="confirmMatchingBtn">${remaining > 0 ? '提交答案（未完）' : '提交答案'}</button>
                 </div>
             `;
         }
@@ -950,7 +957,8 @@ class App {
                 break;
             }
                 
-            case 'select-matching': {
+            case 'select-matching':
+            case 'matching': {
                 // 监听下拉框变化
                 container.querySelectorAll('.select-match-select').forEach(select => {
                     select.addEventListener('change', (e) => {
@@ -977,13 +985,14 @@ class App {
                     confirmBtn.addEventListener('click', () => {
                         const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
 
-                        // 检查是否全部匹配
-                        // 检查是否全部正确（未答题视为错误）
-                        const isCorrect = Object.keys(pairs).length === question.options.length &&
+                        // 检查是否全部匹配（未匹配视为错误）
+                        const pairList = question.options || question.pairs || [];
+                        const isCorrect = Object.keys(pairs).length === pairList.length &&
                             Object.keys(pairs).every(k => {
                                 const leftIndex = parseInt(k);
                                 const rightIndex = parseInt(pairs[k]);
-                                return question.options[rightIndex].right === question.options[leftIndex].right;
+                                return question.options[rightIndex] && question.options[leftIndex] &&
+                                    question.options[rightIndex].right === question.options[leftIndex].right;
                             });
 
                         if (isCorrect) {
@@ -1024,109 +1033,6 @@ class App {
                 break;
             }
 
-            case 'matching': {
-                // 已弃用,使用 select-matching 代替
-                let selectedLeft = null;
-
-                // 初始化Canvas
-                this.initMatchingCanvas(question);
-
-                // 左侧点击
-                container.querySelectorAll('.match-item.left').forEach(item => {
-                    item.addEventListener('click', () => {
-                        if (self.isAnswerSubmitted) return;
-                        
-                        const leftIndex = parseInt(item.dataset.left);
-                        self.game.playSound('click');
-                        
-                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
-                        item.classList.add('selected');
-                        selectedLeft = leftIndex;
-                    });
-                });
-                
-                // 右侧点击
-                container.querySelectorAll('.match-item.right').forEach(item => {
-                    item.addEventListener('click', () => {
-                        if (self.isAnswerSubmitted) return;
-                        if (selectedLeft === null) return;
-                        
-                        const rightIndex = parseInt(item.dataset.right);
-                        self.game.playSound('click');
-                        
-                        if (!self.selectedPairs[self.currentQuestionIndex]) {
-                            self.selectedPairs[self.currentQuestionIndex] = {};
-                        }
-                        self.selectedPairs[self.currentQuestionIndex][selectedLeft] = rightIndex;
-                        
-                        // 不重新渲染，只更新选中状态和绘制连线
-                        const leftItem = document.getElementById(`match-left-${selectedLeft}`);
-                        const rightItem = document.getElementById(`match-right-${rightIndex}`);
-                        if (leftItem) leftItem.classList.add('matched');
-                        if (rightItem) rightItem.classList.add('matched');
-                        
-                        // 绘制连线
-                        self.drawMatchingLines(question);
-                        
-                        selectedLeft = null;
-                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
-                    });
-                });
-
-                // 确认按钮事件
-                const confirmBtn = document.getElementById('confirmMatchingBtn');
-                if (confirmBtn) {
-                    confirmBtn.addEventListener('click', () => {
-                        const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
-                        
-                        // 检查是否全部正确（未答题视为错误）
-                        const isCorrect = Object.keys(pairs).length === question.pairs.length &&
-                            Object.keys(pairs).every(k => {
-                                const leftIndex = parseInt(k);
-                                const rightIndex = parseInt(pairs[k]);
-                                const selectedRightContent = question.pairs[rightIndex].right;
-                                const correctRightContent = question.pairs[leftIndex].right;
-                                return selectedRightContent === correctRightContent;
-                            });
-                        
-                        if (isCorrect) {
-                            self.game.playSound('correct');
-                        } else {
-                            self.game.playSound('incorrect');
-                        }
-                        
-                        // 检查是否是最后一题
-                        if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
-                            self.isAnswerSubmitted = true;
-                            self.submitQuiz();
-                        } else {
-                            self.isAnswerSubmitted = true;
-                            self.renderQuestion();
-                            
-                            const addContinueBtn = () => {
-                                const btnContainer = document.getElementById('questionContainer');
-                                if (btnContainer && !document.getElementById('continueBtn')) {
-                                    const btnHtml = `
-                                        <div style="margin-top: 20px; text-align: center;">
-                                            <button class="btn btn-primary" id="continueBtn">继续</button>
-                                        </div>
-                                    `;
-                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
-                                    
-                                    document.getElementById('continueBtn').addEventListener('click', () => {
-                                        self.game.playSound('click');
-                                        self.isAnswerSubmitted = false;
-                                        self.nextQuestionOrFinish();
-                                    });
-                                }
-                            };
-                            setTimeout(addContinueBtn, 100);
-                        }
-                    });
-                }
-                break;
-            }
-                
             case 'ordering': {
                 this.setupDragDrop(container);
 
