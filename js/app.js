@@ -377,8 +377,12 @@ class App {
                 questionHtml = this.renderMultipleChoiceQuestion(question);
                 break;
             case 'select-matching':
-            case 'matching':
+                // 下拉框选择模式
                 questionHtml = this.renderSelectMatchingQuestion(question);
+                break;
+            case 'matching':
+                // 连连看模式（左右连线）
+                questionHtml = this.renderMatchingQuestion(question);
                 break;
             case 'ordering':
                 questionHtml = this.renderOrderingQuestion(question);
@@ -661,32 +665,34 @@ class App {
         }
         const pairs = this.selectedPairs[this.currentQuestionIndex];
         const colors = ['#2563eb', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
-        
+        // 兼容 options/pairs 两种字段
+        const items = question.options || question.pairs || [];
+
         // 保持右侧顺序稳定，避免每次渲染打乱
         if (!this.shuffledRightIndices) {
             this.shuffledRightIndices = {};
         }
         if (!this.shuffledRightIndices[this.currentQuestionIndex]) {
-            this.shuffledRightIndices[this.currentQuestionIndex] = [...question.pairs].map((p, i) => i).sort(() => Math.random() - 0.5);
+            this.shuffledRightIndices[this.currentQuestionIndex] = [...items].map((p, i) => i).sort(() => Math.random() - 0.5);
         }
         const shuffledRight = this.shuffledRightIndices[this.currentQuestionIndex];
-        
-        const leftItems = question.pairs.map((p, i) => {
+
+        const leftItems = items.map((p, i) => {
             const isMatched = pairs[i] !== undefined;
             let isCorrect = false;
             let isWrong = false;
-            
+
             if (this.isAnswerSubmitted && isMatched) {
                 const selectedRightIndex = pairs[i];
-                const selectedRightContent = question.pairs[selectedRightIndex].right;
-                const correctRightContent = question.pairs[i].right;
+                const selectedRightContent = items[selectedRightIndex] && items[selectedRightIndex].right;
+                const correctRightContent = items[i] && items[i].right;
                 isCorrect = selectedRightContent === correctRightContent;
                 isWrong = !isCorrect;
             }
-            
+
             return `
-                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" 
-                     data-left="${i}" 
+                <div class="match-item left ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}"
+                     data-left="${i}"
                      id="match-left-${i}">
                     <span class="match-label" style="background-color: ${colors[i % colors.length]}">${String.fromCharCode(65 + i)}</span>
                     <span class="match-text">${p.left}</span>
@@ -697,34 +703,41 @@ class App {
         const rightItems = shuffledRight.map(i => {
             const matchedLeft = Object.keys(pairs).find(k => pairs[k] === i);
             const isMatched = matchedLeft !== undefined;
-            
+
             let isCorrect = false;
             let isWrong = false;
-            
+
             if (this.isAnswerSubmitted && isMatched) {
                 const leftIndex = parseInt(matchedLeft);
-                const selectedRightContent = question.pairs[i].right;
-                const correctRightContent = question.pairs[leftIndex].right;
+                const selectedRightContent = items[i] && items[i].right;
+                const correctRightContent = items[leftIndex] && items[leftIndex].right;
                 isCorrect = selectedRightContent === correctRightContent;
                 isWrong = !isCorrect;
             }
-            
+
             const colorIndex = isMatched ? parseInt(matchedLeft) : shuffledRight.indexOf(i);
             return `
-                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}" 
-                     data-right="${i}" 
+                <div class="match-item right ${isMatched ? 'matched' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'incorrect' : ''}"
+                     data-right="${i}"
                      id="match-right-${i}">
                     <span class="match-label" style="background-color: ${colors[colorIndex % colors.length]}">${i + 1}</span>
-                    <span class="match-text">${question.pairs[i].right}</span>
+                    <span class="match-text">${items[i].right}</span>
                 </div>
             `;
         }).join('');
 
         let confirmButtonHtml = '';
         if (!this.isAnswerSubmitted) {
+            const answered = Object.keys(pairs).length;
+            const total = items.length;
+            const remaining = total - answered;
+            const tip = remaining > 0
+                ? `⚠️ 还有 ${remaining} 项未连接，提交后未连项将判错`
+                : `✓ 全部已连接，请提交答案`;
             confirmButtonHtml = `
                 <div style="margin-top: 20px; text-align: center;">
-                    <button class="btn btn-primary" id="confirmMatchingBtn">确认答案</button>
+                    <p id="matchingTip" style="margin-top:10px;color:${remaining > 0 ? '#f59e0b' : '#10b981'};font-size:0.85rem;">${tip}</p>
+                    <button class="btn btn-primary" id="confirmMatchingBtn">${remaining > 0 ? '提交答案（未完）' : '提交答案'}</button>
                 </div>
             `;
         }
@@ -734,7 +747,9 @@ class App {
                 <span class="question-number">${this.currentQuestionIndex + 1}.</span>
                 ${question.question}
             </div>
-            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">点击配对：先点左侧，再点右侧进行配对</p>
+            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">
+                🎮 <strong>连连看模式</strong>：先点左侧项，再点右侧项，用彩色线连接配对
+            </p>
             <div class="matching-container" id="matchingContainer">
                 <canvas id="matchingCanvas" class="matching-canvas"></canvas>
                 <div class="match-column left-column">
@@ -1057,6 +1072,125 @@ class App {
                                     `;
                                     btnContainer.insertAdjacentHTML('beforeend', btnHtml);
 
+                                    document.getElementById('continueBtn').addEventListener('click', () => {
+                                        self.game.playSound('click');
+                                        self.isAnswerSubmitted = false;
+                                        self.nextQuestionOrFinish();
+                                    });
+                                }
+                            };
+                            setTimeout(addContinueBtn, 100);
+                        }
+                    });
+                }
+                break;
+            }
+
+            case 'matching': {
+                // 连连看模式：点左→点右→连线
+                let selectedLeft = null;
+                const self = this;
+                const items = question.options || question.pairs || [];
+
+                // 左侧点击
+                container.querySelectorAll('.match-item.left').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (self.isAnswerSubmitted) return;
+
+                        const leftIndex = parseInt(item.dataset.left);
+                        self.game.playSound('click');
+
+                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+                        selectedLeft = leftIndex;
+                    });
+                });
+
+                // 右侧点击
+                container.querySelectorAll('.match-item.right').forEach(item => {
+                    item.addEventListener('click', () => {
+                        if (self.isAnswerSubmitted) return;
+                        if (selectedLeft === null) return;
+
+                        const rightIndex = parseInt(item.dataset.right);
+                        self.game.playSound('click');
+
+                        if (!self.selectedPairs[self.currentQuestionIndex]) {
+                            self.selectedPairs[self.currentQuestionIndex] = {};
+                        }
+                        self.selectedPairs[self.currentQuestionIndex][selectedLeft] = rightIndex;
+
+                        // 不重新渲染，只更新选中状态和绘制连线
+                        const leftItem = document.getElementById(`match-left-${selectedLeft}`);
+                        const rightItem = document.getElementById(`match-right-${rightIndex}`);
+                        if (leftItem) leftItem.classList.add('matched');
+                        if (rightItem) rightItem.classList.add('matched');
+
+                        // 绘制连线
+                        self.drawMatchingLines(question);
+
+                        selectedLeft = null;
+                        container.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+
+                        // 更新提示
+                        const total = items.length;
+                        const answered = Object.keys(self.selectedPairs[self.currentQuestionIndex] || {}).length;
+                        const tipEl = document.getElementById('matchingTip');
+                        const btn = document.getElementById('confirmMatchingBtn');
+                        if (tipEl) {
+                            const remaining = total - answered;
+                            tipEl.innerHTML = remaining > 0
+                                ? `⚠️ 还有 ${remaining} 项未连接，提交后未连项将判错`
+                                : `✓ 全部已连接，请提交答案`;
+                            tipEl.style.color = remaining > 0 ? '#f59e0b' : '#10b981';
+                        }
+                        if (btn) {
+                            btn.textContent = answered < total ? `提交答案（未完）` : `提交答案`;
+                        }
+                    });
+                });
+
+                // 确认按钮事件
+                const confirmBtn = document.getElementById('confirmMatchingBtn');
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        if (!self.currentSubLevel || !Array.isArray(self.currentSubLevel.quiz)) {
+                            console.warn('currentSubLevel 异常，跳过');
+                            return;
+                        }
+                        const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+
+                        const isCorrect = Object.keys(pairs).length === items.length &&
+                            Object.keys(pairs).every(k => {
+                                const leftIndex = parseInt(k);
+                                const rightIndex = parseInt(pairs[k]);
+                                const sel = items[rightIndex];
+                                const cor = items[leftIndex];
+                                return sel && cor && sel.right && cor.right && sel.right === cor.right;
+                            });
+
+                        if (isCorrect) {
+                            self.game.playSound('correct');
+                        } else {
+                            self.game.playSound('incorrect');
+                        }
+
+                        if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
+                            self.isAnswerSubmitted = true;
+                            self.submitQuiz();
+                        } else {
+                            self.isAnswerSubmitted = true;
+                            self.renderQuestion();
+
+                            const addContinueBtn = () => {
+                                const btnContainer = document.getElementById('questionContainer');
+                                if (btnContainer && !document.getElementById('continueBtn')) {
+                                    const btnHtml = `
+                                        <div style="margin-top: 20px; text-align: center;">
+                                            <button class="btn btn-primary" id="continueBtn">继续</button>
+                                        </div>
+                                    `;
+                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
                                     document.getElementById('continueBtn').addEventListener('click', () => {
                                         self.game.playSound('click');
                                         self.isAnswerSubmitted = false;
