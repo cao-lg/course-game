@@ -11,6 +11,9 @@
     <div id="app">
         <!-- 顶部导航栏 -->
         <header class="header">
+            <button class="menu-toggle" id="menuToggle" aria-label="菜单">
+                <i class="fas fa-bars"></i>
+            </button>
             <div class="header-left">
                 <h1 class="logo"><i class="fas fa-chart-line"></i> 金融营销大师养成记</h1>
             </div>
@@ -36,6 +39,9 @@
                 <button class="settings-btn" id="settingsBtn"><i class="fas fa-cog"></i></button>
             </div>
         </header>
+
+        <!-- 移动端遮罩层 -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
         <!-- 主内容区 -->
         <main class="main-container">

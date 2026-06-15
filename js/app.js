@@ -28,7 +28,7 @@ class App {
         document.getElementById('startBtn').addEventListener('click', () => {
             try {
                 this.game.playSound('click');
-                
+
                 this.showPage('level');
                 this.renderLevel(levelsData[0]);
             } catch (e) {
@@ -36,6 +36,27 @@ class App {
                 alert('启动失败，请刷新页面重试');
             }
         });
+
+        // 移动端菜单切换
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        if (menuToggle && sidebar) {
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.toggle('show');
+                }
+            });
+        }
+
+        if (sidebarOverlay) {
+            sidebarOverlay.addEventListener('click', () => {
+                sidebar.classList.remove('open');
+                sidebarOverlay.classList.remove('show');
+            });
+        }
 
         document.getElementById('settingsBtn').addEventListener('click', () => {
             this.game.playSound('click');
@@ -1870,6 +1891,16 @@ class App {
         const pageEl = document.getElementById(`${page}Page`);
         if (pageEl) {
             pageEl.style.display = 'block';
+        }
+
+        // 切换页面时关闭移动端侧边栏
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        if (sidebar && window.innerWidth <= 768) {
+            sidebar.classList.remove('open');
+            if (sidebarOverlay) {
+                sidebarOverlay.classList.remove('show');
+            }
         }
 
         this.currentPage = page;
