@@ -3115,3 +3115,124 @@ const levelsData = [
         ]
     }
 ];
+
+// 等级数据
+const ranksData = [
+    { id: 1, name: "实习客户经理", icon: "🌱", minPoints: 0, color: "#9ca3af" },
+    { id: 2, name: "初级客户经理", icon: "📘", minPoints: 200, color: "#60a5fa" },
+    { id: 3, name: "中级客户经理", icon: "📗", minPoints: 600, color: "#34d399" },
+    { id: 4, name: "高级客户经理", icon: "📙", minPoints: 1500, color: "#fbbf24" },
+    { id: 5, name: "资深客户经理", icon: "📕", minPoints: 3000, color: "#f97316" },
+    { id: 6, name: "理财专家", icon: "🏅", minPoints: 5000, color: "#ef4444" },
+    { id: 7, name: "营销总监", icon: "🏆", minPoints: 8000, color: "#a855f7" },
+    { id: 8, name: "金融营销大师", icon: "👑", minPoints: 12000, color: "#ec4899" }
+];
+
+// 勋章数据
+const medalsData = [
+    {
+        id: "beginner",
+        name: "启程之章",
+        icon: "🚀",
+        description: "完成项目一所有任务",
+        requirement: { type: "level", level: 1 }
+    },
+    {
+        id: "concept_master",
+        name: "理念达人",
+        icon: "💡",
+        description: "完成项目二所有任务",
+        requirement: { type: "level", level: 2 }
+    },
+    {
+        id: "tt_expert",
+        name: "3T高手",
+        icon: "🎯",
+        description: "完成项目三所有任务",
+        requirement: { type: "level", level: 3 }
+    },
+    {
+        id: "campaign_star",
+        name: "活动明星",
+        icon: "🎪",
+        description: "完成项目四所有任务",
+        requirement: { type: "level", level: 4 }
+    },
+    {
+        id: "sales_champion",
+        name: "销售冠军",
+        icon: "🏆",
+        description: "完成项目五所有任务",
+        requirement: { type: "level", level: 5 }
+    },
+    {
+        id: "relationship_master",
+        name: "关系大师",
+        icon: "🤝",
+        description: "完成项目六所有任务",
+        requirement: { type: "level", level: 6 }
+    },
+    {
+        id: "segmentation_pro",
+        name: "客群专家",
+        icon: "👥",
+        description: "完成项目七所有任务",
+        requirement: { type: "level", level: 7 }
+    },
+    {
+        id: "service_expert",
+        name: "服务之星",
+        icon: "⭐",
+        description: "完成项目八所有任务",
+        requirement: { type: "level", level: 8 }
+    },
+    {
+        id: "marketing_master",
+        name: "营销大师",
+        icon: "👑",
+        description: "完成项目九所有任务",
+        requirement: { type: "level", level: 9 }
+    },
+    {
+        id: "first_correct",
+        name: "初战告捷",
+        icon: "✨",
+        description: "累计答对10道题",
+        requirement: { type: "correct", count: 10 }
+    },
+    {
+        id: "correct_50",
+        name: "稳步前进",
+        icon: "🎖️",
+        description: "累计答对50道题",
+        requirement: { type: "correct", count: 50 }
+    },
+    {
+        id: "correct_100",
+        name: "百题斩",
+        icon: "🎖️",
+        description: "累计答对100道题",
+        requirement: { type: "correct", count: 100 }
+    },
+    {
+        id: "star_collector",
+        name: "三星收藏家",
+        icon: "🌟",
+        description: "获得任意3星评价",
+        requirement: { type: "stars" }
+    },
+    {
+        id: "diligent",
+        name: "勤学不辍",
+        icon: "📚",
+        description: "累计学习时长30分钟",
+        requirement: { type: "studyTime", minutes: 30 }
+    },
+    {
+        id: "hard_worker",
+        name: "持之以恒",
+        icon: "📖",
+        description: "累计学习时长120分钟",
+        requirement: { type: "studyTime", minutes: 120 }
+    }
+];
