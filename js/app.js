@@ -611,9 +611,9 @@ class App {
                     <select class="select-match-select" data-left-index="${i}" ${this.isAnswerSubmitted ? 'disabled' : ''}>
                         ${optionTags}
                     </select>
-                    ${this.isAnswerSubmitted ?
-                        `<span class="select-match-feedback">${question.options[selectedRightIdx].right === p.right ? '✓' : '✗ 正确: ' + p.right}</span>`
-                        : ''}
+                    ${this.isAnswerSubmitted && selectedRightIdx !== undefined ?
+                        `<span class="select-match-feedback">${question.options[selectedRightIdx] && question.options[selectedRightIdx].right === p.right ? '✓' : '✗ 正确: ' + p.right}</span>`
+                        : (this.isAnswerSubmitted ? `<span class="select-match-feedback" style="color:#94a3b8;">未匹配 (正确: ${p.right})</span>` : '')}
                 </div>
             `;
         }).join('');
@@ -1016,6 +1016,11 @@ class App {
                 const confirmBtn = document.getElementById('confirmMatchingBtn');
                 if (confirmBtn) {
                     confirmBtn.addEventListener('click', () => {
+                        // 防御：未进入quiz时不应触发
+                        if (!self.currentSubLevel || !Array.isArray(self.currentSubLevel.quiz)) {
+                            console.warn('currentSubLevel 异常，跳过');
+                            return;
+                        }
                         const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
 
                         // 检查是否全部匹配（未匹配视为错误）
@@ -1073,10 +1078,16 @@ class App {
                 const orderingConfirmBtn = document.getElementById('confirmOrderingBtn');
                 if (orderingConfirmBtn) {
                     orderingConfirmBtn.addEventListener('click', () => {
+                        // 防御：未进入quiz时不应触发
+                        if (!this.currentSubLevel || !Array.isArray(this.currentSubLevel.quiz)) {
+                            console.warn('currentSubLevel 异常，跳过');
+                            return;
+                        }
                         const order = this.orderedItems[this.currentQuestionIndex] || [];
+                        const ans = Array.isArray(question.answer) ? question.answer : [];
 
                         // 检查是否全部正确
-                        const isCorrect = order.every((val, i) => val === question.answer[i]);
+                        const isCorrect = order.length === ans.length && order.every((val, i) => val === ans[i]);
 
                         if (isCorrect) {
                             this.game.playSound('correct');
@@ -1701,14 +1712,14 @@ class App {
                 case 'select-matching':
                 case 'matching':
                     const pairs = this.selectedPairs[index] || {};
-                    const pairList = q.options || q.pairs || [];
+                    const pairList = (q.options || q.pairs || []);
                     isCorrect = Object.keys(pairs).length === pairList.length &&
                         Object.keys(pairs).every(k => {
                             const leftIndex = parseInt(k);
                             const rightIndex = parseInt(pairs[k]);
-                            const selectedRightContent = pairList[rightIndex] && pairList[rightIndex].right;
-                            const correctRightContent = pairList[leftIndex] && pairList[leftIndex].right;
-                            return selectedRightContent && correctRightContent && selectedRightContent === correctRightContent;
+                            const sel = pairList[rightIndex];
+                            const cor = pairList[leftIndex];
+                            return sel && cor && sel.right && cor.right && sel.right === cor.right;
                         });
                     break;
                 case 'ordering':
