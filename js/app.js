@@ -302,8 +302,10 @@ class App {
 
         document.getElementById('studyTitle').textContent = knowledge.title;
 
-        // 检查是否有 PDF 文件
-        if (knowledge.pdf) {
+        // 检查是否有 PDF 文件 - 同时支持 knowledge.pdf 和 subLevel.pdf
+        const pdfUrl = knowledge.pdf || this.currentSubLevel.pdf;
+
+        if (pdfUrl) {
             studyContent.innerHTML = `
                 <div class="knowledge-card">
                     <h3>${knowledge.title}</h3>
@@ -316,14 +318,14 @@ class App {
                     `).join('')}
                     <div class="pdf-viewer-container" style="margin-top: 20px;">
                         <h4 style="margin-bottom: 10px;"><i class="fas fa-file-pdf"></i> 教材内容</h4>
-                        <iframe 
-                            src="${knowledge.pdf}" 
+                        <iframe
+                            src="${pdfUrl}"
                             style="width: 100%; height: 600px; border: 1px solid #e2e8f0; border-radius: 8px;"
                             title="${knowledge.title}">
                         </iframe>
                         <p style="margin-top: 10px; color: #64748b; font-size: 0.9rem;">
-                            <i class="fas fa-info-circle"></i> 如果 PDF 无法正常显示，您可以 
-                            <a href="${knowledge.pdf}" target="_blank" style="color: #2563eb; text-decoration: underline;">点击这里在新窗口打开</a>
+                            <i class="fas fa-info-circle"></i> 如果 PDF 无法正常显示，您可以
+                            <a href="${pdfUrl}" target="_blank" style="color: #2563eb; text-decoration: underline;">点击这里在新窗口打开</a>
                         </p>
                     </div>
                 </div>

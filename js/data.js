@@ -9,6 +9,8 @@ const levelsData = [
                 id: 1.1,
                 title: "任务一 1.1 金融与金融机构认知",
                 description: "学习金融的含义与本质、金融机构的分类、政策性银行与商业银行的区别",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务一.pdf",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务一.pdf",
                 knowledge: [
                     {
                         title: "金融的含义与本质",
@@ -85,6 +87,8 @@ const levelsData = [
                 id: 1.2,
                 title: "任务一 1.2 金融产品的层次与特征",
                 description: "学习金融产品的三个层次、七大特征、金融产品分类",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务二.pdf",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务二.pdf",
                 knowledge: [
                     {
                         title: "金融产品的三个层次",
@@ -161,6 +165,8 @@ const levelsData = [
                 id: 1.3,
                 title: "任务一 1.3 金融产品营销基础",
                 description: "学习营销理念演变（4P→4C→7P→4E）、金融产品营销特征、营销人员职业素养",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务三.pdf",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务三.pdf",
                 knowledge: [
                     {
                         title: "营销理念演变：4P→4C→7P→4E",
@@ -240,6 +246,7 @@ const levelsData = [
                 id: 2.1,
                 title: "任务二 2.1 宏观环境分析（PESTEL）",
                 description: "学习政治法律、经济、社会、技术、环境、法律因素",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务四.pdf",
                 knowledge: [
                     {
                         title: "PESTEL分析框架",
@@ -310,6 +317,7 @@ const levelsData = [
                 id: 2.2,
                 title: "任务二 2.2 微观环境分析（波特五力）",
                 description: "学习同行业竞争者、潜在新进入者、替代品威胁、供应商议价能力、购买者议价能力",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务四.pdf",
                 knowledge: [
                     {
                         title: "波特五力模型",
@@ -379,6 +387,7 @@ const levelsData = [
                 id: 2.3,
                 title: "任务二 2.3 SWOT分析与战略选择",
                 description: "学习SWOT矩阵、SO/ST/WO/WT战略",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务四.pdf",
                 knowledge: [
                     {
                         title: "SWOT矩阵",
@@ -447,6 +456,7 @@ const levelsData = [
                 id: 3.1,
                 title: "任务三 3.1 市场调研方案设计",
                 description: "学习调研方案的主要内容、调研流程",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务三.pdf",
                 knowledge: [
                     {
                         title: "调研方案的主要内容",
@@ -515,6 +525,7 @@ const levelsData = [
                 id: 3.2,
                 title: "任务三 3.2 调查问卷设计",
                 description: "学习问卷设计原则、问卷结构、问题类型",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务三.pdf",
                 knowledge: [
                     {
                         title: "问卷设计原则",
@@ -594,6 +605,7 @@ const levelsData = [
                 id: 3.3,
                 title: "任务三 3.3 调研报告撰写",
                 description: "学习调研报告的特点、基本内容、写作要求",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务三.pdf",
                 knowledge: [
                     {
                         title: "调研报告的特点",
@@ -673,6 +685,7 @@ const levelsData = [
                 id: 4.1,
                 title: "任务四 4.1 金融市场细分",
                 description: "学习市场细分的意义、要求、步骤、细分标准",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "市场细分的意义",
@@ -760,6 +773,7 @@ const levelsData = [
                 id: 4.2,
                 title: "任务四 4.2 目标市场选择",
                 description: "学习目标市场评估、三种目标市场策略（无差异/差异化/集中化）",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "目标市场评估",
@@ -847,6 +861,7 @@ const levelsData = [
                 id: 4.3,
                 title: "任务四 4.3 市场定位",
                 description: "学习市场定位的意义、步骤、差异化策略",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "市场定位的意义",
@@ -923,6 +938,7 @@ const levelsData = [
                 id: 5.1,
                 title: "任务五 5.1 产品策略",
                 description: "学习产品层次、产品组合策略、品牌策略、新产品开发、产品生命周期",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "产品层次",
@@ -1027,6 +1043,7 @@ const levelsData = [
                 id: 5.2,
                 title: "任务五 5.2 价格策略",
                 description: "学习定价基础、定价方法、定价策略",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "定价基础",
@@ -1106,6 +1123,7 @@ const levelsData = [
                 id: 5.3,
                 title: "任务五 5.3 促销策略",
                 description: "学习促销组合、广告策略、人员推销、营业推广、公共关系",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "促销组合",
@@ -1205,6 +1223,7 @@ const levelsData = [
                 id: 5.4,
                 title: "任务五 5.4 分销策略",
                 description: "学习分销渠道类型、直接/间接分销、分销策略选择",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务五.pdf",
                 knowledge: [
                     {
                         title: "分销渠道类型",
@@ -1290,6 +1309,7 @@ const levelsData = [
                 id: 6.1,
                 title: "任务六 6.1 营销方案策划流程",
                 description: "学习营销策划的步骤、策划书的构成要素",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务六.pdf",
                 knowledge: [
                     {
                         title: "营销策划的步骤",
@@ -1353,6 +1373,7 @@ const levelsData = [
                 id: 6.2,
                 title: "任务六 6.2 综合实战训练",
                 description: "学习数字信用卡营销方案设计、养老理财产品营销方案设计",
+                pdf: "assets/教材/《金融产品营销实务》（第三版）项目一任务六.pdf",
                 knowledge: [
                     {
                         title: "数字信用卡营销方案设计",
