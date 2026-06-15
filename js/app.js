@@ -377,10 +377,14 @@ class App {
                 questionHtml = this.renderMultipleChoiceQuestion(question);
                 break;
             case 'select-matching':
+            case 'matching':
                 questionHtml = this.renderSelectMatchingQuestion(question);
                 break;
             case 'ordering':
                 questionHtml = this.renderOrderingQuestion(question);
+                break;
+            case 'case':
+                questionHtml = this.renderCaseQuestion(question);
                 break;
             default:
                 questionHtml = this.renderSingleChoiceQuestion(question);
@@ -805,6 +809,46 @@ class App {
         `;
     }
 
+    renderCaseQuestion(question) {
+        const caseContent = question.case || '';
+        const reference = question.answer || '';
+        const mastered = this.userAnswers[this.currentQuestionIndex] === 'mastered';
+        const showReference = this.isAnswerSubmitted || mastered;
+        return `
+            <div class="question-text">
+                <span class="question-number">${this.currentQuestionIndex + 1}.</span>
+                ${question.question}
+            </div>
+            <div class="case-analysis-box" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #2563eb; padding: 18px 20px; border-radius: 8px; margin: 18px 0; line-height: 1.8; color: #1e293b; font-size: 0.95rem;">
+                <h4 style="margin: 0 0 10px; color: #1e40af; display: flex; align-items: center; gap: 6px;">
+                    <i class="fas fa-briefcase"></i> 案例背景
+                </h4>
+                <div style="white-space: pre-wrap;">${caseContent || reference}</div>
+            </div>
+            ${showReference ? `
+                <div class="explanation" style="background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981; padding: 18px 20px; border-radius: 8px; margin: 18px 0; line-height: 1.8;">
+                    <h4 style="margin: 0 0 10px; color: #047857; display: flex; align-items: center; gap: 6px;">
+                        <i class="fas fa-lightbulb"></i> 参考分析思路
+                    </h4>
+                    <p style="margin: 0; color: #1e293b;">${reference}</p>
+                    ${question.explanation ? `<p style="margin: 10px 0 0; color: #475569; font-size: 0.9rem;"><strong>解析：</strong>${question.explanation}</p>` : ''}
+                </div>
+                <div style="text-align: center; margin-top: 12px; color: #10b981; font-weight: 600;">
+                    <i class="fas fa-check-circle"></i> 已掌握
+                </div>
+            ` : `
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" id="caseMasteredBtn">
+                        <i class="fas fa-graduation-cap"></i> 我已掌握，继续
+                    </button>
+                </div>
+                <p style="text-align: center; margin-top: 12px; color: #64748b; font-size: 0.85rem;">
+                    💡 认真思考后点击按钮即可查看参考分析思路
+                </p>
+            `}
+        `;
+    }
+
     bindQuestionEvents(question) {
         const container = document.getElementById('questionContainer');
         const self = this;
@@ -1091,7 +1135,7 @@ class App {
                 if (orderingConfirmBtn) {
                     orderingConfirmBtn.addEventListener('click', () => {
                         const order = this.orderedItems[this.currentQuestionIndex] || [];
-                        
+
                         // 检查是否全部正确
                         const isCorrect = order.every((val, i) => val === question.answer[i]);
 
@@ -1121,7 +1165,7 @@ class App {
                                         </div>
                                     `;
                                     btnContainer.insertAdjacentHTML('beforeend', btnHtml);
-                                    
+
                                     document.getElementById('continueBtn').addEventListener('click', () => {
                                         this.game.playSound('click');
                                         this.isAnswerSubmitted = false;
@@ -1131,6 +1175,38 @@ class App {
                             };
                             setTimeout(addContinueBtn, 100);
                         }
+                    });
+                }
+                break;
+            }
+
+            case 'case': {
+                // 案例分析题：阅读+参考思路+"我已掌握"按钮
+                const masteredBtn = document.getElementById('caseMasteredBtn');
+                if (masteredBtn) {
+                    masteredBtn.addEventListener('click', () => {
+                        this.userAnswers[this.currentQuestionIndex] = 'mastered';
+                        this.game.playSound('correct');
+                        this.game.recordAnswer(true);
+                        this.isAnswerSubmitted = true;
+                        this.renderQuestion();
+                        // 添加继续按钮
+                        setTimeout(() => {
+                            const btnContainer = document.getElementById('questionContainer');
+                            if (btnContainer && !document.getElementById('continueBtn')) {
+                                const btnHtml = `
+                                    <div style="margin-top: 20px; text-align: center;">
+                                        <button class="btn btn-primary" id="continueBtn">继续</button>
+                                    </div>
+                                `;
+                                btnContainer.insertAdjacentHTML('beforeend', btnHtml);
+                                document.getElementById('continueBtn').addEventListener('click', () => {
+                                    this.game.playSound('click');
+                                    this.isAnswerSubmitted = false;
+                                    this.nextQuestionOrFinish();
+                                });
+                            }
+                        }, 100);
                     });
                 }
                 break;
@@ -1656,6 +1732,10 @@ class App {
                 case 'ordering':
                     const order = this.orderedItems[index] || [];
                     isCorrect = order.every((val, i) => val === q.answer[i]);
+                    break;
+                case 'case':
+                    // 案例分析题：用户点击"已掌握"即算对
+                    isCorrect = this.userAnswers[index] === 'mastered';
                     break;
             }
             
