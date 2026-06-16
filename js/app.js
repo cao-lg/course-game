@@ -367,7 +367,7 @@ class App {
         totalQuestionsEl.textContent = this.currentSubLevel.quiz.length;
 
         let questionHtml = '';
-        
+
         switch(question.type) {
             case 'single':
             case 'judge':
@@ -376,12 +376,9 @@ class App {
             case 'multiple':
                 questionHtml = this.renderMultipleChoiceQuestion(question);
                 break;
-            case 'select-matching':
-                // 下拉框选择模式
-                questionHtml = this.renderSelectMatchingQuestion(question);
-                break;
             case 'matching':
-                // 连连看模式（左右连线）
+            case 'select-matching':
+                // 统一走连连看模式（已去掉下拉框模式）
                 questionHtml = this.renderMatchingQuestion(question);
                 break;
             case 'ordering':
@@ -394,10 +391,14 @@ class App {
                 questionHtml = this.renderSingleChoiceQuestion(question);
         }
 
+        // 追加"用游戏玩"切换按钮（让题目能用小游戏呈现）
+        questionHtml += this.renderGameModeToggle(question);
+
         questionContainer.innerHTML = questionHtml;
 
         if (!this.isAnswerSubmitted) {
             this.bindQuestionEvents(question);
+            this.bindGameModeToggle(question);
         }
 
         // 触发游戏化动画
@@ -1005,87 +1006,6 @@ class App {
                 break;
             }
                 
-            case 'select-matching':
-            case 'matching': {
-                // 监听下拉框变化
-                container.querySelectorAll('.select-match-select').forEach(select => {
-                    select.addEventListener('change', (e) => {
-                        const leftIndex = parseInt(e.target.dataset.leftIndex);
-                        const rightValue = e.target.value;
-
-                        if (!self.selectedPairs[self.currentQuestionIndex]) {
-                            self.selectedPairs[self.currentQuestionIndex] = {};
-                        }
-
-                        if (rightValue === '') {
-                            delete self.selectedPairs[self.currentQuestionIndex][leftIndex];
-                        } else {
-                            self.selectedPairs[self.currentQuestionIndex][leftIndex] = parseInt(rightValue);
-                        }
-                        self.game.playSound('click');
-                        if (window.gameEffects) window.gameEffects.burstFromElement(select, 'sparkle', 8);
-                    });
-                });
-
-                // 确认按钮事件
-                const confirmBtn = document.getElementById('confirmMatchingBtn');
-                if (confirmBtn) {
-                    confirmBtn.addEventListener('click', () => {
-                        // 防御：未进入quiz时不应触发
-                        if (!self.currentSubLevel || !Array.isArray(self.currentSubLevel.quiz)) {
-                            console.warn('currentSubLevel 异常，跳过');
-                            return;
-                        }
-                        const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
-
-                        // 检查是否全部匹配（未匹配视为错误）
-                        const pairList = question.options || question.pairs || [];
-                        const isCorrect = Object.keys(pairs).length === pairList.length &&
-                            Object.keys(pairs).every(k => {
-                                const leftIndex = parseInt(k);
-                                const rightIndex = parseInt(pairs[k]);
-                                return question.options[rightIndex] && question.options[leftIndex] &&
-                                    question.options[rightIndex].right === question.options[leftIndex].right;
-                            });
-
-                        if (isCorrect) {
-                            self.game.playSound('correct');
-                        } else {
-                            self.game.playSound('incorrect');
-                        }
-
-                        // 检查是否是最后一题
-                        if (self.currentQuestionIndex === self.currentSubLevel.quiz.length - 1) {
-                            self.isAnswerSubmitted = true;
-                            self.submitQuiz();
-                        } else {
-                            self.isAnswerSubmitted = true;
-                            self.renderQuestion();
-
-                            const addContinueBtn = () => {
-                                const btnContainer = document.getElementById('questionContainer');
-                                if (btnContainer && !document.getElementById('continueBtn')) {
-                                    const btnHtml = `
-                                        <div style="margin-top: 20px; text-align: center;">
-                                            <button class="btn btn-primary" id="continueBtn">继续</button>
-                                        </div>
-                                    `;
-                                    btnContainer.insertAdjacentHTML('beforeend', btnHtml);
-
-                                    document.getElementById('continueBtn').addEventListener('click', () => {
-                                        self.game.playSound('click');
-                                        self.isAnswerSubmitted = false;
-                                        self.nextQuestionOrFinish();
-                                    });
-                                }
-                            };
-                            setTimeout(addContinueBtn, 100);
-                        }
-                    });
-                }
-                break;
-            }
-
             case 'matching': {
                 // 连连看模式：点左→点右→连线
                 let selectedLeft = null;
@@ -1835,34 +1755,71 @@ class App {
             switch(q.type) {
                 case 'single':
                 case 'judge':
-                    isCorrect = this.userAnswers[index] === q.answer;
+                    if (typeof this.userAnswers[index] === 'string' &&
+                        (this.userAnswers[index] === 'shooter-correct' ||
+                         this.userAnswers[index] === 'flip-correct' ||
+                         this.userAnswers[index] === 'collect-correct' ||
+                         this.userAnswers[index] === 'lianliankan-correct')) {
+                        isCorrect = true;
+                    } else {
+                        isCorrect = this.userAnswers[index] === q.answer;
+                    }
                     break;
                 case 'multiple':
-                    const selected = this.selectedOptions[index] || [];
-                    const answer = q.answer || [];
-                    isCorrect = selected.length === answer.length && 
-                        selected.every(s => answer.includes(s));
+                    if (typeof this.userAnswers[index] === 'string' &&
+                        (this.userAnswers[index] === 'shooter-correct' ||
+                         this.userAnswers[index] === 'flip-correct' ||
+                         this.userAnswers[index] === 'collect-correct' ||
+                         this.userAnswers[index] === 'lianliankan-correct')) {
+                        isCorrect = true;
+                    } else {
+                        const selected = this.selectedOptions[index] || [];
+                        const answer = q.answer || [];
+                        isCorrect = selected.length === answer.length &&
+                            selected.every(s => answer.includes(s));
+                    }
                     break;
                 case 'select-matching':
                 case 'matching':
-                    const pairs = this.selectedPairs[index] || {};
-                    const pairList = (q.options || q.pairs || []);
-                    isCorrect = Object.keys(pairs).length === pairList.length &&
-                        Object.keys(pairs).every(k => {
-                            const leftIndex = parseInt(k);
-                            const rightIndex = parseInt(pairs[k]);
-                            const sel = pairList[rightIndex];
-                            const cor = pairList[leftIndex];
-                            return sel && cor && sel.right && cor.right && sel.right === cor.right;
-                        });
+                    if (typeof this.userAnswers[index] === 'string' &&
+                        (this.userAnswers[index] === 'shooter-correct' ||
+                         this.userAnswers[index] === 'flip-correct' ||
+                         this.userAnswers[index] === 'collect-correct' ||
+                         this.userAnswers[index] === 'lianliankan-correct')) {
+                        isCorrect = true;
+                    } else {
+                        const pairs = this.selectedPairs[index] || {};
+                        const pairList = (q.options || q.pairs || []);
+                        isCorrect = Object.keys(pairs).length === pairList.length &&
+                            Object.keys(pairs).every(k => {
+                                const leftIndex = parseInt(k);
+                                const rightIndex = parseInt(pairs[k]);
+                                const sel = pairList[rightIndex];
+                                const cor = pairList[leftIndex];
+                                return sel && cor && sel.right && cor.right && sel.right === cor.right;
+                            });
+                    }
                     break;
                 case 'ordering':
-                    const order = this.orderedItems[index] || [];
-                    isCorrect = order.every((val, i) => val === q.answer[i]);
+                    if (typeof this.userAnswers[index] === 'string' &&
+                        (this.userAnswers[index] === 'shooter-correct' ||
+                         this.userAnswers[index] === 'flip-correct' ||
+                         this.userAnswers[index] === 'collect-correct' ||
+                         this.userAnswers[index] === 'lianliankan-correct')) {
+                        isCorrect = true;
+                    } else {
+                        const order = this.orderedItems[index] || [];
+                        isCorrect = order.every((val, i) => val === q.answer[i]);
+                    }
                     break;
                 case 'case':
-                    // 案例分析题：有options则对比correctOption，否则按mastered算对
-                    if (Array.isArray(q.options) && q.options.length > 0) {
+                    if (typeof this.userAnswers[index] === 'string' &&
+                        (this.userAnswers[index] === 'shooter-correct' ||
+                         this.userAnswers[index] === 'flip-correct' ||
+                         this.userAnswers[index] === 'collect-correct' ||
+                         this.userAnswers[index] === 'lianliankan-correct')) {
+                        isCorrect = true;
+                    } else if (Array.isArray(q.options) && q.options.length > 0) {
                         isCorrect = this.userAnswers[index] === q.correctOption;
                     } else {
                         isCorrect = this.userAnswers[index] === 'mastered';
@@ -2102,6 +2059,517 @@ class App {
         const progress = this.game.getProgress();
         document.getElementById('progressFill').style.width = `${progress}%`;
         document.getElementById('progressText').textContent = `${Math.round(progress)}%`;
+    }
+
+    // ========== 游戏壳路由：用小游戏呈现题目 ==========
+    // 每种题型默认匹配一个最有趣的游戏壳
+    pickGameModeForType(type) {
+        const map = {
+            'single': 'shooter',         // 单选 → 击靶
+            'multiple': 'collect',       // 多选 → 收集箱
+            'judge': 'flip',             // 判断 → 翻牌
+            'case': 'shooter',           // 案例 → 击靶
+            'matching': 'matching',      // 匹配 → 连连看
+            'ordering': 'collect',       // 排序 → 收集箱
+            'select-matching': 'matching'  // 兼容旧数据
+        };
+        return map[type] || 'shooter';
+    }
+
+    // 在题目下方追加一个"用游戏来玩"的切换按钮
+    renderGameModeToggle(question) {
+        const mode = this.pickGameModeForType(question.type);
+        const labels = {
+            'shooter': '🎯 击靶答题',
+            'flip': '🃏 翻牌答题',
+            'collect': '🛒 收集箱答题',
+            'matching': '🔗 连连看答题'
+        };
+        const label = labels[mode] || '🎮 用游戏玩这题';
+        return `
+            <div style="margin-top:20px;padding-top:16px;border-top:1px dashed #cbd5e1;text-align:center;">
+                <button id="playAsGameBtn" class="btn" style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:#fff;border:none;padding:12px 28px;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                    ${label}
+                </button>
+                <p style="margin:8px 0 0;color:#94a3b8;font-size:0.85rem;">点击进入游戏模式来回答这道题</p>
+            </div>
+        `;
+    }
+
+    bindGameModeToggle(question) {
+        const btn = document.getElementById('playAsGameBtn');
+        if (!btn) return;
+        const mode = this.pickGameModeForType(question.type);
+        const self = this;
+        btn.addEventListener('click', () => {
+            self.game.playSound && self.game.playSound('click');
+            if (mode === 'matching') {
+                self.launchLianliankanForCurrent();
+            } else if (mode === 'flip') {
+                self.launchFlipCardForCurrent();
+            } else if (mode === 'collect') {
+                self.launchCollectForCurrent();
+            } else {
+                self.launchShooterForCurrent();
+            }
+        });
+    }
+
+    // 用连连看小游戏呈现当前题
+    launchLianliankanForCurrent() {
+        const question = this.currentSubLevel.quiz[this.currentQuestionIndex];
+        if (!question) return;
+        const container = document.getElementById('questionContainer');
+        const items = question.options || question.pairs || [];
+        if (items.length === 0) {
+            alert('此匹配题数据异常');
+            return;
+        }
+        // 渲染连连看游戏壳
+        const gameHtml = `
+            <div id="lianliankanShell" data-question-index="${this.currentQuestionIndex}" style="background:#fff;border-radius:12px;padding:20px;box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+                <h3 style="margin:0 0 6px;color:#1e293b;font-size:1.15rem;">🔗 连连看 - 找出匹配对</h3>
+                <p style="margin:0 0 14px;color:#64748b;font-size:0.9rem;">依次点击左侧 → 右侧建立连线，全部连完提交</p>
+                <div class="matching-container" id="matchingContainer" style="position:relative;display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+                    <div class="match-column" id="leftCol">
+                        ${items.map((p, i) => `<div class="match-item left" data-left="${i}" id="match-left-${i}" style="padding:12px 14px;margin:8px 0;background:#fef3c7;border:2px solid #f59e0b;border-radius:8px;cursor:pointer;font-size:0.95rem;transition:all 0.2s;text-align:center;"><b style="color:#b45309;margin-right:6px;">${String.fromCharCode(65 + i)}.</b>${p.left}</div>`).join('')}
+                    </div>
+                    <div class="match-column" id="rightCol" style="position:relative;">
+                        ${this.shuffledIndicesForMatching(question, items).map((origIdx, displayIdx) => `<div class="match-item right" data-right="${origIdx}" id="match-right-${origIdx}" style="padding:12px 14px;margin:8px 0;background:#dbeafe;border:2px solid #2563eb;border-radius:8px;cursor:pointer;font-size:0.95rem;transition:all 0.2s;text-align:center;"><b style="color:#1e40af;margin-right:6px;">${String.fromCharCode(65 + displayIdx)}.</b>${items[origIdx].right}</div>`).join('')}
+                        <canvas id="matchingCanvas" style="position:absolute;top:0;left:0;pointer-events:none;z-index:1;"></canvas>
+                    </div>
+                </div>
+                <div id="matchingTip" style="margin-top:14px;text-align:center;color:#f59e0b;font-weight:600;">⚠️ 还有 ${items.length} 项未连接</div>
+                <div style="margin-top:14px;text-align:center;">
+                    <button id="confirmMatchingBtn" class="btn btn-primary" style="padding:12px 32px;background:linear-gradient(135deg,#10b981 0%,#059669 100%);color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">提交答案（未完）</button>
+                </div>
+            </div>
+        `;
+        container.innerHTML = gameHtml;
+        this.initLianliankanCanvas();
+        this.bindLianliankanEvents(question);
+    }
+
+    shuffledIndicesForMatching(question, items) {
+        if (!this._lianliankanShuffle) this._lianliankanShuffle = {};
+        const key = String(this.currentQuestionIndex);
+        if (!this._lianliankanShuffle[key]) {
+            const arr = items.map((_, i) => i);
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            this._lianliankanShuffle[key] = arr;
+        }
+        return this._lianliankanShuffle[key];
+    }
+
+    initLianliankanCanvas() {
+        const canvas = document.getElementById('matchingCanvas');
+        const container = document.getElementById('matchingContainer');
+        if (!canvas || !container) return;
+        const rect = container.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+    }
+
+    drawLianliankanLines() {
+        const canvas = document.getElementById('matchingCanvas');
+        if (!canvas) return;
+        const ctx2d = canvas.getContext('2d');
+        if (!ctx2d) return;
+        ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+        const pairs = this.selectedPairs[this.currentQuestionIndex] || {};
+        const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
+        let colorIdx = 0;
+        const container = document.getElementById('matchingContainer');
+        const rect = container.getBoundingClientRect();
+        Object.keys(pairs).forEach((k) => {
+            const leftEl = document.getElementById(`match-left-${k}`);
+            const rightEl = document.getElementById(`match-right-${pairs[k]}`);
+            if (!leftEl || !rightEl) return;
+            const lr = leftEl.getBoundingClientRect();
+            const rr = rightEl.getBoundingClientRect();
+            const x1 = lr.right - rect.left;
+            const y1 = lr.top + lr.height / 2 - rect.top;
+            const x2 = rr.left - rect.left;
+            const y2 = rr.top + rr.height / 2 - rect.top;
+            ctx2d.strokeStyle = colors[colorIdx % colors.length];
+            ctx2d.lineWidth = 3;
+            ctx2d.beginPath();
+            ctx2d.moveTo(x1, y1);
+            // 贝塞尔曲线
+            const mx = (x1 + x2) / 2;
+            ctx2d.bezierCurveTo(mx, y1, mx, y2, x2, y2);
+            ctx2d.stroke();
+            colorIdx++;
+        });
+    }
+
+    bindLianliankanEvents(question) {
+        const self = this;
+        if (!this.selectedPairs[this.currentQuestionIndex]) this.selectedPairs[this.currentQuestionIndex] = {};
+        let selectedLeft = null;
+        const items = question.options || question.pairs || [];
+        const total = items.length;
+
+        document.querySelectorAll('.match-item.left').forEach(item => {
+            item.addEventListener('click', () => {
+                if (self.isAnswerSubmitted) return;
+                const li = parseInt(item.dataset.left);
+                self.game.playSound && self.game.playSound('click');
+                document.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                item.classList.add('selected');
+                selectedLeft = li;
+            });
+        });
+
+        document.querySelectorAll('.match-item.right').forEach(item => {
+            item.addEventListener('click', () => {
+                if (self.isAnswerSubmitted) return;
+                if (selectedLeft === null) return;
+                const ri = parseInt(item.dataset.right);
+                self.game.playSound && self.game.playSound('click');
+                self.selectedPairs[self.currentQuestionIndex][selectedLeft] = ri;
+                const le = document.getElementById(`match-left-${selectedLeft}`);
+                const re = document.getElementById(`match-right-${ri}`);
+                if (le) le.classList.add('matched');
+                if (re) re.classList.add('matched');
+                self.drawLianliankanLines();
+                selectedLeft = null;
+                document.querySelectorAll('.match-item.left').forEach(i => i.classList.remove('selected'));
+                const answered = Object.keys(self.selectedPairs[self.currentQuestionIndex] || {}).length;
+                const tip = document.getElementById('matchingTip');
+                const btn = document.getElementById('confirmMatchingBtn');
+                if (tip) {
+                    const remain = total - answered;
+                    tip.innerHTML = remain > 0
+                        ? `⚠️ 还有 ${remain} 项未连接，提交后未连项将判错`
+                        : '✓ 全部已连接，请提交答案';
+                    tip.style.color = remain > 0 ? '#f59e0b' : '#10b981';
+                }
+                if (btn) btn.textContent = answered < total ? '提交答案（未完）' : '提交答案';
+            });
+        });
+
+        const confirmBtn = document.getElementById('confirmMatchingBtn');
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', () => {
+                if (!self.currentSubLevel || !Array.isArray(self.currentSubLevel.quiz)) return;
+                const pairs = self.selectedPairs[self.currentQuestionIndex] || {};
+                const isCorrect = Object.keys(pairs).length === items.length &&
+                    Object.keys(pairs).every(k => {
+                        const li = parseInt(k);
+                        const ri = parseInt(pairs[k]);
+                        const sel = items[ri];
+                        const cor = items[li];
+                        return sel && cor && sel.right && cor.right && sel.right === cor.right;
+                    });
+                self.userAnswers[self.currentQuestionIndex] = isCorrect ? 'lianliankan-correct' : 'lianliankan-wrong';
+                self.game.playSound && self.game.playSound(isCorrect ? 'correct' : 'incorrect');
+                self.isAnswerSubmitted = true;
+                self.renderQuestion();
+                setTimeout(() => self.addContinueButton(), 100);
+            });
+        }
+    }
+
+    // ========== 击靶 (Shooter) - 用于 single / case ==========
+    launchShooterForCurrent() {
+        const self = this;
+        const question = self.currentSubLevel.quiz[self.currentQuestionIndex];
+        if (!question) return;
+        const container = document.getElementById('questionContainer');
+        const opts = question.options || [];
+        if (!opts.length) {
+            container.innerHTML = `<div style="padding:30px;background:#fff;border-radius:10px;text-align:center;color:#64748b;">此题无选项</div>`;
+            return;
+        }
+        // 正确答案索引
+        const correctIdx = (() => {
+            if (typeof question.correctOption === 'number') return question.correctOption;
+            if (typeof question.answer === 'number') return question.answer;
+            return 0;
+        })();
+        // 击靶：4 个靶子从下方飞过，鼠标点中命中
+        container.innerHTML = `
+            <div id="shooterShell" style="background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);border-radius:12px;padding:20px;color:#fff;position:relative;overflow:hidden;">
+                <h3 style="margin:0 0 4px;font-size:1.1rem;">🎯 击靶挑战 - 命中正确答案</h3>
+                <p style="margin:0 0 12px;color:#94a3b8;font-size:0.85rem;">靶子从右向左飞过，看准点击（${question.type === 'case' ? '💼 案例' : '🎯 单选'}）</p>
+                <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+                    <div style="font-size:0.95rem;color:#fde68a;font-weight:600;">${question.question}</div>
+                </div>
+                <div id="shooterStage" style="position:relative;height:280px;background:radial-gradient(ellipse at center,#1e40af 0%,#0f172a 100%);border-radius:8px;overflow:hidden;border:2px solid #334155;">
+                    <div style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:2rem;">🏹</div>
+                </div>
+                <div style="margin-top:10px;text-align:center;">
+                    <span id="shooterScore" style="background:#10b981;color:#fff;padding:4px 10px;border-radius:6px;font-weight:600;margin-right:8px;">命中 0</span>
+                    <span id="shooterMiss" style="background:#ef4444;color:#fff;padding:4px 10px;border-radius:6px;font-weight:600;">错失 0</span>
+                </div>
+            </div>
+        `;
+        const stage = container.querySelector('#shooterStage');
+        const scoreEl = container.querySelector('#shooterScore');
+        const missEl = container.querySelector('#shooterMiss');
+        let hit = 0, miss = 0, answered = false;
+        // 4 个靶子从右向左飞
+        const colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'];
+        const targets = opts.map((opt, idx) => ({
+            idx,
+            text: opt,
+            color: colors[idx % colors.length],
+            x: 100, // 百分比
+            y: 10 + idx * 24, // 错位
+            dom: null
+        }));
+        // 创建靶子
+        targets.forEach(t => {
+            const el = document.createElement('div');
+            el.className = 'shooter-target';
+            el.dataset.idx = t.idx;
+            el.style.cssText = `position:absolute;top:${t.y}%;right:-30%;transform:translateY(-50%);padding:10px 16px;background:${t.color};color:#fff;border:3px solid #fff;border-radius:30px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 4px 10px rgba(0,0,0,0.3);user-select:none;white-space:nowrap;z-index:2;`;
+            el.textContent = `${String.fromCharCode(65 + t.idx)}. ${t.text.substring(0, 12)}${t.text.length > 12 ? '...' : ''}`;
+            el.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (answered) return;
+                answered = true;
+                const isCorrect = t.idx === correctIdx;
+                if (isCorrect) {
+                    hit++;
+                    el.style.background = '#10b981';
+                    el.style.transform = 'translateY(-50%) scale(1.3)';
+                    el.style.boxShadow = '0 0 30px #10b981';
+                } else {
+                    miss++;
+                    el.style.background = '#ef4444';
+                    el.style.transform = 'translateY(-50%) scale(0.8) rotate(20deg)';
+                    el.style.opacity = '0.5';
+                }
+                scoreEl.textContent = `命中 ${hit}`;
+                missEl.textContent = `错失 ${miss}`;
+                self.game.playSound && self.game.playSound(isCorrect ? 'correct' : 'incorrect');
+                // 标记答案
+                self.userAnswers[self.currentQuestionIndex] = isCorrect ? 'shooter-correct' : 'shooter-wrong';
+                self.isAnswerSubmitted = true;
+                // 反馈 + 进入下一题
+                setTimeout(() => {
+                    self.renderQuestion();
+                    setTimeout(() => self.addContinueButton(), 100);
+                }, 800);
+            });
+            stage.appendChild(el);
+            t.dom = el;
+        });
+        // 动画循环：靶子从右向左
+        let frame = 0;
+        const totalFrames = 120; // 4 秒 @30fps
+        const animInterval = setInterval(() => {
+            if (answered) {
+                clearInterval(animInterval);
+                return;
+            }
+            frame++;
+            const progress = frame / totalFrames;
+            targets.forEach(t => {
+                if (!t.dom) return;
+                t.dom.style.right = `${-30 + progress * 130}%`;
+            });
+            if (frame >= totalFrames) {
+                clearInterval(animInterval);
+                if (!answered) {
+                    answered = true;
+                    miss++;
+                    missEl.textContent = `错失 ${miss}`;
+                    self.userAnswers[self.currentQuestionIndex] = 'shooter-wrong';
+                    self.isAnswerSubmitted = true;
+                    self.game.playSound && self.game.playSound('incorrect');
+                    setTimeout(() => {
+                        self.renderQuestion();
+                        setTimeout(() => self.addContinueButton(), 100);
+                    }, 500);
+                }
+            }
+        }, 30);
+    }
+
+    // ========== 翻牌 (Flip Card) - 用于 judge ==========
+    launchFlipCardForCurrent() {
+        const self = this;
+        const question = self.currentSubLevel.quiz[self.currentQuestionIndex];
+        if (!question) return;
+        const container = document.getElementById('questionContainer');
+        // 判断题 answer 转布尔
+        const ans = question.answer;
+        let truthVal = true;
+        if (typeof ans === 'boolean') truthVal = ans;
+        else if (typeof ans === 'string') {
+            const lower = ans.toLowerCase();
+            truthVal = lower === 'true' || lower === '✓' || lower === '对' || lower === '正确' || lower === 'yes';
+        } else if (typeof ans === 'number') truthVal = ans === 0;
+
+        container.innerHTML = `
+            <div id="flipCardShell" style="background:linear-gradient(135deg,#7c3aed 0%,#5b21b6 100%);border-radius:12px;padding:24px;color:#fff;">
+                <h3 style="margin:0 0 4px;font-size:1.1rem;">🃏 翻牌挑战 - 判定对错</h3>
+                <p style="margin:0 0 16px;color:#ddd6fe;font-size:0.85rem;">点击牌面翻开，看完题干后选 ✓ 正确 / ✗ 错误</p>
+                <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:14px;margin-bottom:16px;text-align:center;">
+                    <div style="font-size:0.85rem;color:#ddd6fe;margin-bottom:6px;">题干：</div>
+                    <div style="font-size:1.05rem;font-weight:600;">${question.question}</div>
+                </div>
+                <div id="flipCardGrid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;perspective:1000px;">
+                    <div class="flip-card" data-val="true" style="position:relative;height:160px;cursor:pointer;transform-style:preserve-3d;transition:transform 0.6s;">
+                        <div class="flip-card-front" style="position:absolute;inset:0;background:linear-gradient(135deg,#10b981 0%,#059669 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:3rem;backface-visibility:hidden;box-shadow:0 6px 16px rgba(0,0,0,0.3);">✓</div>
+                        <div class="flip-card-back" style="position:absolute;inset:0;background:#fff;color:#10b981;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;backface-visibility:hidden;transform:rotateY(180deg);box-shadow:0 6px 16px rgba(0,0,0,0.3);">正确</div>
+                    </div>
+                    <div class="flip-card" data-val="false" style="position:relative;height:160px;cursor:pointer;transform-style:preserve-3d;transition:transform 0.6s;">
+                        <div class="flip-card-front" style="position:absolute;inset:0;background:linear-gradient(135deg,#ef4444 0%,#b91c1c 100%);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:3rem;backface-visibility:hidden;box-shadow:0 6px 16px rgba(0,0,0,0.3);">✗</div>
+                        <div class="flip-card-back" style="position:absolute;inset:0;background:#fff;color:#ef4444;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:700;backface-visibility:hidden;transform:rotateY(180deg);box-shadow:0 6px 16px rgba(0,0,0,0.3);">错误</div>
+                    </div>
+                </div>
+                <p style="margin:14px 0 0;text-align:center;color:#ddd6fe;font-size:0.8rem;">翻牌后立即判分</p>
+            </div>
+        `;
+        const cards = container.querySelectorAll('.flip-card');
+        cards.forEach(card => {
+            card.addEventListener('click', () => {
+                const chosen = card.dataset.val === 'true';
+                card.style.transform = 'rotateY(180deg)';
+                // 同时翻另一张
+                const other = Array.from(cards).find(c => c !== card);
+                if (other) other.style.transform = 'rotateY(180deg)';
+                const isCorrect = chosen === truthVal;
+                self.game.playSound && self.game.playSound(isCorrect ? 'correct' : 'incorrect');
+                self.userAnswers[self.currentQuestionIndex] = isCorrect ? 'flip-correct' : 'flip-wrong';
+                self.isAnswerSubmitted = true;
+                // 显示判定结果
+                const grid = container.querySelector('#flipCardGrid');
+                const verdict = document.createElement('div');
+                verdict.style.cssText = 'margin-top:14px;padding:12px;border-radius:8px;text-align:center;font-weight:700;font-size:1.05rem;color:#fff;background:' + (isCorrect ? 'rgba(16,185,129,0.95)' : 'rgba(239,68,68,0.95)') + ';';
+                verdict.textContent = isCorrect ? '✓ 判定正确！' : `✗ 正确答案：${truthVal ? '✓ 正确' : '✗ 错误'}`;
+                grid.insertAdjacentElement('afterend', verdict);
+                setTimeout(() => {
+                    self.renderQuestion();
+                    setTimeout(() => self.addContinueButton(), 100);
+                }, 1200);
+            });
+        });
+    }
+
+    // ========== 收集箱 (Collect) - 用于 multiple / ordering ==========
+    launchCollectForCurrent() {
+        const self = this;
+        const question = self.currentSubLevel.quiz[self.currentQuestionIndex];
+        if (!question) return;
+        const container = document.getElementById('questionContainer');
+        const opts = question.options || [];
+        if (!opts.length) {
+            container.innerHTML = `<div style="padding:30px;background:#fff;border-radius:10px;text-align:center;color:#64748b;">此题无选项</div>`;
+            return;
+        }
+        const correctIdx = (() => {
+            if (Array.isArray(question.correctOption)) return question.correctOption;
+            if (Array.isArray(question.answer)) return question.answer;
+            return [];
+        })();
+        // 收集箱：4 张卡牌在"货架"上，点一下收入"购物车"，再点退货回货架
+        container.innerHTML = `
+            <div id="collectShell" style="background:linear-gradient(135deg,#0891b2 0%,#0e7490 100%);border-radius:12px;padding:20px;color:#fff;">
+                <h3 style="margin:0 0 4px;font-size:1.1rem;">🛒 收集箱 - 把对的物品全收进来</h3>
+                <p style="margin:0 0 14px;color:#cffafe;font-size:0.85rem;">点卡牌收入购物车，再次点击退回货架（${question.type === 'multiple' ? '☑️ 多选' : '🚂 排序'}）</p>
+                <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+                    <div style="font-size:0.95rem;color:#fef3c7;font-weight:600;">${question.question}</div>
+                </div>
+                <div style="margin-bottom:14px;">
+                    <div style="font-size:0.85rem;color:#cffafe;margin-bottom:6px;">📦 货架：</div>
+                    <div id="collectShelf" style="display:flex;flex-wrap:wrap;gap:8px;min-height:60px;background:rgba(255,255,255,0.05);border-radius:8px;padding:10px;">
+                        ${opts.map((opt, idx) => `<div class="collect-item" data-idx="${idx}" style="padding:10px 14px;background:#fff;color:#0e7490;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.2);user-select:none;border:2px solid #cffafe;transition:all 0.2s;">${String.fromCharCode(65 + idx)}. ${opt.substring(0, 18)}${opt.length > 18 ? '...' : ''}</div>`).join('')}
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size:0.85rem;color:#cffafe;margin-bottom:6px;">🛒 购物车（已选 <span id="collectCount">0</span>）：</div>
+                    <div id="collectCart" style="display:flex;flex-wrap:wrap;gap:8px;min-height:60px;background:rgba(255,255,255,0.15);border-radius:8px;padding:10px;border:2px dashed #fff;">
+                        <span style="color:#cffafe;font-size:0.85rem;">把对的选项拖进来</span>
+                    </div>
+                </div>
+                <button id="collectSubmitBtn" style="display:block;width:100%;padding:14px;margin-top:14px;background:linear-gradient(135deg,#fbbf24 0%,#f59e0b 100%);color:#1e293b;border:none;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:700;">✅ 提交答案（已选 0 项）</button>
+            </div>
+        `;
+        const cart = [];
+        const shelf = container.querySelector('#collectShelf');
+        const cartEl = container.querySelector('#collectCart');
+        const countEl = container.querySelector('#collectCount');
+        const submitBtn = container.querySelector('#collectSubmitBtn');
+        const updateSubmitText = () => {
+            submitBtn.textContent = `✅ 提交答案（已选 ${cart.length} 项）`;
+        };
+        const renderCart = () => {
+            if (cart.length === 0) {
+                cartEl.innerHTML = '<span style="color:#cffafe;font-size:0.85rem;">把对的选项拖进来</span>';
+            } else {
+                cartEl.innerHTML = cart.map(idx => {
+                    return `<div class="collect-item cart-item" data-idx="${idx}" style="padding:10px 14px;background:#fbbf24;color:#1e293b;border-radius:8px;cursor:pointer;font-size:0.9rem;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.2);user-select:none;border:2px solid #fff;">${String.fromCharCode(65 + idx)}. ${opts[idx].substring(0, 18)}${opts[idx].length > 18 ? '...' : ''}</div>`;
+                }).join('');
+                // 绑定购物车内点击 = 退回
+                cartEl.querySelectorAll('.collect-item').forEach(el => {
+                    el.addEventListener('click', () => {
+                        const idx = parseInt(el.dataset.idx);
+                        const pos = cart.indexOf(idx);
+                        if (pos !== -1) cart.splice(pos, 1);
+                        self.game.playSound && self.game.playSound('click');
+                        renderCart();
+                        countEl.textContent = cart.length;
+                        updateSubmitText();
+                    });
+                });
+            }
+        };
+        // 货架点击 = 收入购物车
+        shelf.querySelectorAll('.collect-item').forEach(el => {
+            el.addEventListener('click', () => {
+                const idx = parseInt(el.dataset.idx);
+                if (cart.indexOf(idx) === -1) cart.push(idx);
+                self.game.playSound && self.game.playSound('click');
+                renderCart();
+                countEl.textContent = cart.length;
+                updateSubmitText();
+            });
+        });
+        submitBtn.addEventListener('click', () => {
+            // 对比
+            const chosen = cart.slice().sort();
+            const right = correctIdx.slice().sort();
+            const isCorrect = chosen.length === right.length && chosen.every((v, i) => v === right[i]);
+            self.game.playSound && self.game.playSound(isCorrect ? 'correct' : 'incorrect');
+            self.userAnswers[self.currentQuestionIndex] = isCorrect ? 'collect-correct' : 'collect-wrong';
+            self.isAnswerSubmitted = true;
+            // 反馈
+            const verdict = document.createElement('div');
+            verdict.style.cssText = 'margin-top:12px;padding:12px;border-radius:8px;text-align:center;font-weight:700;color:#fff;background:' + (isCorrect ? 'rgba(16,185,129,0.95)' : 'rgba(239,68,68,0.95)') + ';';
+            verdict.textContent = isCorrect ? '✓ 收集正确！' : `✗ 正确选项：${right.map(i => String.fromCharCode(65 + i)).join('、')}`;
+            submitBtn.insertAdjacentElement('afterend', verdict);
+            submitBtn.disabled = true;
+            setTimeout(() => {
+                self.renderQuestion();
+                setTimeout(() => self.addContinueButton(), 100);
+            }, 1200);
+        });
+    }
+
+    addContinueButton() {
+        const btnContainer = document.getElementById('questionContainer');
+        if (btnContainer && !document.getElementById('continueBtn')) {
+            const html = `
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="btn btn-primary" id="continueBtn" style="padding:12px 32px;background:linear-gradient(135deg,#3b82f6 0%,#1e40af 100%);color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;">▶️ 继续下一题</button>
+                </div>
+            `;
+            btnContainer.insertAdjacentHTML('beforeend', html);
+            const self = this;
+            document.getElementById('continueBtn').addEventListener('click', () => {
+                self.game.playSound && self.game.playSound('click');
+                self.isAnswerSubmitted = false;
+                self.nextQuestionOrFinish();
+            });
+        }
     }
 }
 
