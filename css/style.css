@@ -53,6 +53,11 @@ body {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    white-space: nowrap;
+}
+
+.logo-text-short {
+    display: none;
 }
 
 .header-right {
@@ -998,8 +1003,18 @@ body {
     }
 
     .header-left .logo {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
         flex: 1;
+        min-width: 0;
+        gap: 0.4rem;
+    }
+
+    .logo-text-full {
+        display: none;
+    }
+
+    .logo-text-short {
+        display: inline;
     }
 
     /* 显示菜单按钮 */
@@ -1041,6 +1056,12 @@ body {
     .user-medals {
         font-size: 0.85rem;
         padding: 4px 8px;
+    }
+
+    /* mobile 下只显示数字+图标，隐藏"积分"/"勋章"文字，防止被挤竖排 */
+    .user-points .points-suffix,
+    .user-medals .medals-suffix {
+        display: none;
     }
 
     .sidebar {
